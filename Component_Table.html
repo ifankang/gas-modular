@@ -1,0 +1,352 @@
+<style>
+.gas-table { width: 100%; border-collapse: collapse; text-align: left; }
+.gas-table th, .gas-table td { padding: 0.875rem 1rem; border-bottom: 1px solid #f1f5f9; }
+.gas-table th { background: #f8fafc; font-weight: 600; cursor: pointer; color: #475569; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.gas-table td { color: #1e293b; font-size: 0.875rem; vertical-align: middle; }
+.gas-table tr:hover td { background: #f8fafc; }
+.gas-table-container { 
+  overflow-x: auto; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 0.75rem; 
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+/* Badge styling */
+.gas-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  line-height: 1;
+}
+.gas-badge-success { background-color: #dcfce7; color: #15803d; }
+.gas-badge-neutral { background-color: #f1f5f9; color: #475569; }
+.gas-badge-primary { background-color: #dbeafe; color: #1d4ed8; }
+.gas-badge-purple { background-color: #f3e8ff; color: #7e22ce; }
+.gas-badge-emerald { background-color: #d1fae5; color: #047857; }
+
+/* Mobile Card View */
+.gas-mobile-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+</style>
+
+<script>
+const Table = (function() {
+  /**
+   * config: {
+   *   target: string, // container ID
+   *   data: array,
+   *   columns: array, // from schema.columns
+   *   pagination: { enabled, pageSize, totalItems, currentPage, onPageChange },
+   *   actions: array, // e.g. ['edit', 'delete']
+   *   onAction: function(actionName, rowData),
+   *   onSort: function(columnKey)
+   * }
+   */
+  function render(config) {
+    const container = document.getElementById(config.target);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const rawData = config.data || [];
+    let currentFilter = '';
+    let sortKey = null;
+    let sortAsc = true;
+
+    // Outer Wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'w-full space-y-3';
+
+    // Top Controls: Live Search
+    const topBar = document.createElement('div');
+    topBar.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+
+    const searchWrapper = document.createElement('div');
+    searchWrapper.className = 'relative flex-1 max-w-md';
+    searchWrapper.innerHTML = `
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+      <input 
+        type="search" 
+        id="${config.target}-search" 
+        placeholder="Cari data cepat..." 
+        class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
+      />
+    `;
+    topBar.appendChild(searchWrapper);
+
+    const countBadge = document.createElement('div');
+    countBadge.className = 'text-xs text-slate-500 font-medium self-end sm:self-center';
+    countBadge.id = `${config.target}-count`;
+    countBadge.innerText = `Menampilkan ${rawData.length} data`;
+    topBar.appendChild(countBadge);
+
+    wrapper.appendChild(topBar);
+
+    // Container for Views
+    const viewsContainer = document.createElement('div');
+    viewsContainer.id = `${config.target}-views`;
+    wrapper.appendChild(viewsContainer);
+
+    container.appendChild(wrapper);
+
+    // Initial render of content
+    function filterAndRender(query) {
+      currentFilter = (query || '').toLowerCase().trim();
+      let filtered = rawData;
+      
+      if (currentFilter) {
+        filtered = rawData.filter(row => {
+          return config.columns.some(col => {
+            const val = row[col.key];
+            return val !== undefined && val !== null && String(val).toLowerCase().includes(currentFilter);
+          });
+        });
+      }
+
+      // Sorting
+      if (sortKey) {
+        filtered = [...filtered].sort((a, b) => {
+          let valA = a[sortKey] ?? '';
+          let valB = b[sortKey] ?? '';
+          if (typeof valA === 'number' && typeof valB === 'number') {
+            return sortAsc ? valA - valB : valB - valA;
+          }
+          return sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+        });
+      }
+
+      countBadge.innerText = `Menampilkan ${filtered.length} dari ${rawData.length} data`;
+      renderViews(filtered);
+    }
+
+    function renderViews(dataToRender) {
+      viewsContainer.innerHTML = '';
+
+      if (dataToRender.length === 0) {
+        viewsContainer.innerHTML = `
+          <div class="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500">
+            <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+            </svg>
+            <p class="font-medium text-slate-700">Tidak ada data ditemukan</p>
+            <p class="text-xs text-slate-400 mt-1">Coba gunakan kata kunci pencarian lain atau tambahkan data baru.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // 1. DESKTOP VIEW (TABLE)
+      const desktopWrapper = document.createElement('div');
+      desktopWrapper.className = 'app-desktop-only gas-table-container';
+
+      const table = document.createElement('table');
+      table.className = 'gas-table';
+
+      const thead = document.createElement('thead');
+      const trHead = document.createElement('tr');
+      config.columns.forEach(col => {
+        const th = document.createElement('th');
+        th.innerHTML = `
+          <div class="flex items-center space-x-1">
+            <span>${col.label}</span>
+            ${col.sortable ? `<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>` : ''}
+          </div>
+        `;
+        if (col.sortable) {
+          th.onclick = () => {
+            if (sortKey === col.key) sortAsc = !sortAsc;
+            else { sortKey = col.key; sortAsc = true; }
+            filterAndRender(currentFilter);
+          };
+        }
+        trHead.appendChild(th);
+      });
+
+      if (config.actions && config.actions.length > 0) {
+        const thAction = document.createElement('th');
+        thAction.innerText = 'Aksi';
+        thAction.style.width = '140px';
+        thAction.style.textAlign = 'right';
+        trHead.appendChild(thAction);
+      }
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      dataToRender.forEach(row => {
+        const tr = document.createElement('tr');
+        config.columns.forEach(col => {
+          const td = document.createElement('td');
+          td.innerHTML = formatCellValue(row[col.key], col);
+          tr.appendChild(td);
+        });
+
+        if (config.actions && config.actions.length > 0) {
+          const tdAction = document.createElement('td');
+          tdAction.style.textAlign = 'right';
+          tdAction.appendChild(createActionButtons(config.actions, row, config.onAction));
+          tr.appendChild(tdAction);
+        }
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      desktopWrapper.appendChild(table);
+      viewsContainer.appendChild(desktopWrapper);
+
+      // 2. MOBILE VIEW (CARD LIST)
+      const mobileWrapper = document.createElement('div');
+      mobileWrapper.className = 'app-mobile-only space-y-3';
+
+      dataToRender.forEach(row => {
+        const card = document.createElement('div');
+        card.className = 'gas-mobile-card';
+
+        // Title Row: First searchable column or name + ID
+        const firstCol = config.columns.find(c => c.key === 'name' || c.key === 'code') || config.columns[1] || config.columns[0];
+        const idCol = config.columns.find(c => c.key === 'id') || config.columns[0];
+        
+        let cardContent = `
+          <div class="flex items-start justify-between border-b border-slate-100 pb-2.5 mb-2.5">
+            <div>
+              <div class="font-bold text-slate-800 text-sm">${row[firstCol.key] || '-'}</div>
+              <div class="text-xs font-mono text-slate-400 mt-0.5">${row[idCol.key] || ''}</div>
+            </div>
+            ${row.status ? `<span class="gas-badge ${row.status === 'active' ? 'gas-badge-success' : 'gas-badge-neutral'}">${row.status}</span>` : ''}
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
+        `;
+
+        config.columns.forEach(col => {
+          if (col.key !== firstCol.key && col.key !== idCol.key && col.key !== 'status') {
+            cardContent += `
+              <div>
+                <span class="text-slate-400 block">${col.label}:</span>
+                <span class="font-semibold text-slate-700">${formatCellText(row[col.key], col)}</span>
+              </div>
+            `;
+          }
+        });
+
+        cardContent += `</div>`;
+        card.innerHTML = cardContent;
+
+        // Card Actions
+        if (config.actions && config.actions.length > 0) {
+          const actionRow = document.createElement('div');
+          actionRow.className = 'pt-2.5 border-t border-slate-100 flex justify-end space-x-2';
+          actionRow.appendChild(createActionButtons(config.actions, row, config.onAction, true));
+          card.appendChild(actionRow);
+        }
+
+        mobileWrapper.appendChild(card);
+      });
+
+      viewsContainer.appendChild(mobileWrapper);
+    }
+
+    function formatCellValue(val, col) {
+      if (val === undefined || val === null || val === '') return '<span class="text-slate-300">-</span>';
+      if (col.type === 'badge') {
+        const lower = String(val).toLowerCase();
+        let badgeClass = 'gas-badge-neutral';
+        if (lower === 'active') badgeClass = 'gas-badge-success';
+        else if (lower === 'admin') badgeClass = 'gas-badge-primary';
+        else if (lower === 'manager') badgeClass = 'gas-badge-purple';
+        else if (lower === 'staff') badgeClass = 'gas-badge-emerald';
+        return `<span class="gas-badge ${badgeClass}">${val}</span>`;
+      }
+      if (col.type === 'number') {
+        if (col.key === 'price') return `<span class="font-semibold text-slate-800">Rp ${Number(val).toLocaleString('id-ID')}</span>`;
+        return `<span class="font-mono">${Number(val).toLocaleString('id-ID')}</span>`;
+      }
+      if (col.type === 'date') {
+        const d = new Date(val);
+        return isNaN(d) ? val : `<span class="text-slate-500">${d.toLocaleDateString('id-ID')}</span>`;
+      }
+      if (col.key === 'id') {
+        return `<span class="font-mono text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-semibold">${val}</span>`;
+      }
+      return val;
+    }
+
+    function formatCellText(val, col) {
+      if (val === undefined || val === null || val === '') return '-';
+      if (col.key === 'price') return `Rp ${Number(val).toLocaleString('id-ID')}`;
+      if (col.type === 'badge') {
+        const lower = String(val).toLowerCase();
+        let badgeClass = 'gas-badge-neutral';
+        if (lower === 'active') badgeClass = 'gas-badge-success';
+        else if (lower === 'admin') badgeClass = 'gas-badge-primary';
+        else if (lower === 'manager') badgeClass = 'gas-badge-purple';
+        else if (lower === 'staff') badgeClass = 'gas-badge-emerald';
+        return `<span class="gas-badge ${badgeClass}">${val}</span>`;
+      }
+      if (col.type === 'date') {
+        const d = new Date(val);
+        return isNaN(d) ? val : d.toLocaleDateString('id-ID');
+      }
+      return val;
+    }
+
+    function createActionButtons(actions, row, onAction, isMobile = false) {
+      const container = document.createElement('div');
+      container.className = 'inline-flex items-center space-x-1.5';
+
+      actions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        if (act === 'edit') {
+          btn.className = 'inline-flex items-center px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-md border border-blue-200 transition-colors';
+          btn.innerHTML = `
+            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            <span>Edit</span>
+          `;
+        } else if (act === 'delete') {
+          btn.className = 'inline-flex items-center px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-md border border-red-200 transition-colors';
+          btn.innerHTML = `
+            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            <span>Hapus</span>
+          `;
+        }
+        btn.onclick = () => onAction && onAction(act, row);
+        container.appendChild(btn);
+      });
+      return container;
+    }
+
+    // Attach search input listener with slight debounce
+    const searchInput = document.getElementById(`${config.target}-search`);
+    if (searchInput) {
+      let timer;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          filterAndRender(e.target.value);
+        }, 120);
+      });
+    }
+
+    // Initial render
+    filterAndRender('');
+  }
+  
+  return { render };
+})();
+</script>

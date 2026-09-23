@@ -1,0 +1,328 @@
+<script>
+  /**
+   * RBAC Role Permissions Fallback Matrix
+   */
+  const ROLE_PERMISSIONS = {
+    admin: {
+      '*': ['*'],
+      dashboard: ['read'],
+      users: ['create', 'read', 'edit', 'delete'],
+      products: ['create', 'read', 'edit', 'delete'],
+      orders: ['create', 'read', 'edit', 'delete'],
+      roles: ['create', 'read', 'edit', 'delete']
+    },
+    manager: {
+      dashboard: ['read'],
+      users: ['read'],
+      products: ['create', 'read', 'edit', 'delete'],
+      orders: ['create', 'read', 'edit', 'delete']
+    },
+    staff: {
+      dashboard: ['read'],
+      products: ['create', 'read', 'edit'],
+      orders: ['read', 'create', 'edit']
+    },
+    viewer: {
+      dashboard: ['read'],
+      products: ['read']
+    }
+  };
+
+  /**
+   * Global Auth Adapter
+   */
+  const Auth = {
+    getUser: function() {
+      return App.currentUser;
+    },
+
+    getRole: function() {
+      return App.currentUser?.role;
+    },
+
+    can: function(resource, action) {
+      const user = this.getUser();
+      if (!user) return false;
+
+      const role = (user.role || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+
+      // 1. Super admin has full access
+      if (role === 'admin' || email === 'admin@databridge.com') {
+        return true;
+      }
+
+      // 2. Custom user.permissions object/string if provided
+      if (user.permissions) {
+        let perms = user.permissions;
+        if (typeof perms === 'string' && perms.trim() !== '') {
+          try { perms = JSON.parse(perms); } catch(e) {}
+        }
+        if (perms && typeof perms === 'object') {
+          if (Array.isArray(perms['*']) && (perms['*'].includes('*') || perms['*'].includes(action))) {
+            return true;
+          }
+          if (Array.isArray(perms[resource]) && (perms[resource].includes('*') || perms[resource].includes(action))) {
+            return true;
+          }
+          // If custom permissions explicitly declares resource, don't fallback
+          if (perms[resource] && Array.isArray(perms[resource])) {
+            return false;
+          }
+        }
+      }
+
+      // 3. Role fallback
+      const rolePerms = ROLE_PERMISSIONS[role];
+      if (rolePerms) {
+        const permsObj = rolePerms.permissions || rolePerms;
+        if (Array.isArray(permsObj['*']) && (permsObj['*'].includes('*') || permsObj['*'].includes(action))) {
+          return true;
+        }
+        const resPerms = permsObj[resource];
+        if (Array.isArray(resPerms)) {
+          return resPerms.includes('*') || resPerms.includes(action);
+        }
+      }
+
+      return false;
+    }
+  };
+
+  /**
+   * Global Scripts, Authentication, Navigation & Access Control
+   */
+  const App = {
+    currentUser: null,
+    currentTab: 'dashboard',
+
+    init: function() {
+      console.log('App Initializing...');
+      this.bindNavigation();
+      this.checkAuth();
+    },
+
+    checkAuth: function() {
+      const stored = localStorage.getItem('gas_auth_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          if (user && user.email) {
+            this.onLoginSuccess(user);
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem('gas_auth_user');
+        }
+      }
+      this.showLogin();
+    },
+
+    showLogin: function() {
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen) loginScreen.classList.remove('hidden');
+    },
+
+    onLoginSuccess: function(user) {
+      this.currentUser = user;
+
+      // Merge dynamic roles map from database if provided
+      if (user && user.rolesMap && typeof user.rolesMap === 'object') {
+        Object.keys(user.rolesMap).forEach(key => {
+          const item = user.rolesMap[key];
+          if (item && item.permissions) {
+            ROLE_PERMISSIONS[key] = {
+              ...(ROLE_PERMISSIONS[key] || {}),
+              ...item.permissions,
+              permissions: item.permissions,
+              name: item.name || key
+            };
+          } else if (item) {
+            ROLE_PERMISSIONS[key] = {
+              ...(ROLE_PERMISSIONS[key] || {}),
+              ...item
+            };
+          }
+        });
+
+        // Dynamically update UserSchema role dropdown options
+        if (typeof UserSchema !== 'undefined' && UserSchema.form && UserSchema.form.fields) {
+          const roleField = UserSchema.form.fields.find(f => f.key === 'role');
+          if (roleField) {
+            roleField.options = Object.keys(user.rolesMap).map(k => {
+              const r = user.rolesMap[k];
+              const label = (r && r.name) ? `${r.name} (${k})` : k;
+              return { value: k, label: label };
+            });
+          }
+        }
+      }
+
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen) loginScreen.classList.add('hidden');
+
+      // Update user name/email in user profile bar
+      const userEmailEl = document.getElementById('current-user-email');
+      if (userEmailEl) {
+        userEmailEl.innerText = user.name ? `${user.name} (${user.email})` : user.email;
+      }
+
+      // Update colored role badge
+      const userRoleEl = document.getElementById('current-user-role');
+      if (userRoleEl) {
+        const role = (user.role || 'viewer').toLowerCase();
+        const roleDisplay = role.charAt(0).toUpperCase() + role.slice(1);
+        userRoleEl.innerText = roleDisplay;
+
+        // Base styles
+        userRoleEl.className = 'text-xs font-semibold px-2 py-0.5 rounded-full border';
+        if (role === 'admin') {
+          userRoleEl.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-200');
+        } else if (role === 'manager') {
+          userRoleEl.classList.add('bg-purple-100', 'text-purple-800', 'border-purple-200');
+        } else if (role === 'staff') {
+          userRoleEl.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-200');
+        } else {
+          // viewer or other
+          userRoleEl.classList.add('bg-slate-100', 'text-slate-700', 'border-slate-200');
+        }
+      }
+
+      // Apply RBAC to UI navigation elements
+      this.applyRBAC();
+
+      // Load default tab
+      this.navigate('dashboard');
+    },
+
+    applyRBAC: function() {
+      const navLinks = document.querySelectorAll('[data-nav]');
+      navLinks.forEach(link => {
+        const target = link.getAttribute('data-nav');
+        if (!target || target === 'dashboard') {
+          link.classList.remove('hidden');
+          link.style.display = '';
+        } else {
+          const allowed = Auth.can(target, 'read');
+          console.log(`[RBAC] Tab '${target}' -> Allowed: ${allowed}`);
+          if (allowed) {
+            link.classList.remove('hidden');
+            link.style.display = '';
+          } else {
+            link.classList.add('hidden');
+            link.style.display = 'none';
+          }
+        }
+      });
+
+      // Explicitly ensure nav-desktop-roles is hidden if !Auth.can('roles', 'read')
+      const rolesDesktopNav = document.getElementById('nav-desktop-roles');
+      if (rolesDesktopNav) {
+        if (!Auth.can('roles', 'read')) {
+          rolesDesktopNav.classList.add('hidden');
+          rolesDesktopNav.style.display = 'none';
+        } else {
+          rolesDesktopNav.classList.remove('hidden');
+          rolesDesktopNav.style.display = '';
+        }
+      }
+
+      // If currently active tab is not allowed, navigate to 'dashboard'
+      if (this.currentTab && this.currentTab !== 'dashboard' && !Auth.can(this.currentTab, 'read')) {
+        this.navigate('dashboard');
+      }
+    },
+
+    logout: function() {
+      if (confirm('Apakah Anda yakin ingin keluar?')) {
+        localStorage.removeItem('gas_auth_user');
+        this.currentUser = null;
+        if (typeof Toast !== 'undefined') {
+          Toast.info('Anda telah keluar dari sistem.');
+        }
+        this.showLogin();
+      }
+    },
+    
+    bindNavigation: function() {
+      const navLinks = document.querySelectorAll('[data-nav]');
+      navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = e.currentTarget.getAttribute('data-nav');
+          this.navigate(target);
+        });
+      });
+    },
+    
+    navigate: function(tabId) {
+      if (tabId !== 'dashboard' && !Auth.can(tabId, 'read')) {
+        if (typeof Toast !== 'undefined') {
+          Toast.error('Anda tidak memiliki akses ke halaman ini.');
+        }
+        if (this.currentTab !== 'dashboard') {
+          this.navigate('dashboard');
+        }
+        return;
+      }
+
+      this.currentTab = tabId;
+
+      // Hide all tabs
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.classList.add('hidden'));
+      
+      // Update nav styles
+      const navLinks = document.querySelectorAll('[data-nav]');
+      navLinks.forEach(link => {
+        // Enforce RBAC visibility during nav state update
+        const navTarget = link.getAttribute('data-nav');
+        if (navTarget && navTarget !== 'dashboard' && !Auth.can(navTarget, 'read')) {
+          link.classList.add('hidden');
+          link.style.display = 'none';
+          return;
+        }
+
+        const isCurrent = navTarget === tabId;
+        const isMobileNav = link.closest('nav.md\\:hidden') || link.closest('nav.app-mobile-flex');
+        
+        if (isMobileNav) {
+          if (isCurrent) {
+            link.classList.add('text-blue-600', 'font-bold');
+            link.classList.remove('text-slate-500');
+          } else {
+            link.classList.remove('text-blue-600', 'font-bold');
+            link.classList.add('text-slate-500');
+          }
+        } else {
+          if (isCurrent) {
+            link.classList.add('bg-blue-50', 'text-blue-700', 'font-semibold');
+            link.classList.remove('text-slate-600', 'hover:bg-slate-50');
+          } else {
+            link.classList.remove('bg-blue-50', 'text-blue-700', 'font-semibold');
+            link.classList.add('text-slate-600', 'hover:bg-slate-50');
+          }
+        }
+      });
+      
+      // Show target tab
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      if (targetTab) {
+        targetTab.classList.remove('hidden');
+        
+        // Trigger tab-specific initialization if available
+        const initFuncName = `init${tabId.charAt(0).toUpperCase() + tabId.slice(1)}Tab`;
+        if (typeof window[initFuncName] === 'function') {
+          window[initFuncName]();
+        }
+      } else {
+        console.warn(`Tab content for '${tabId}' not found`);
+      }
+    }
+  };
+
+  // Run on load
+  document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+  });
+</script>

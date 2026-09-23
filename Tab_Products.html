@@ -1,0 +1,187 @@
+<div class="mb-5 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Katalog Produk (Products)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola daftar produk, inventaris stok, dan harga jual</p>
+  </div>
+  <!-- Desktop Add Button -->
+  <button id="btn-add-product" onclick="ProductsTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    <span>Tambah Produk</span>
+  </button>
+</div>
+
+<!-- Mobile Floating Action Button (FAB) -->
+<button 
+  id="fab-add-product"
+  onclick="ProductsTab.openCreateModal()" 
+  class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+  title="Tambah Produk Cepat"
+>
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+</button>
+
+<div id="products-table-container"></div>
+
+<script>
+const ProductsTab = (function() {
+  const tableContainerId = 'products-table-container';
+  let isInitialized = false;
+
+  function updateAccessUI() {
+    const canCreate = typeof Auth !== 'undefined' && Auth.can('products', 'create');
+    const desktopBtn = document.getElementById('btn-add-product');
+    const fabBtn = document.getElementById('fab-add-product');
+    if (desktopBtn) desktopBtn.style.display = canCreate ? '' : 'none';
+    if (fabBtn) fabBtn.style.display = canCreate ? '' : 'none';
+  }
+
+  function init() {
+    updateAccessUI();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData(); // Reload data when switching back to tab
+    }
+  }
+
+  function loadData() {
+    updateAccessUI();
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const actions = [];
+    if (typeof Auth !== 'undefined') {
+      if (Auth.can('products', 'edit')) actions.push('edit');
+      if (Auth.can('products', 'delete')) actions.push('delete');
+    } else {
+      actions.push('edit', 'delete');
+    }
+
+    API.products.list()
+      .then(data => {
+        if (typeof Table !== 'undefined') {
+          Table.render({
+            target: tableContainerId,
+            data: data,
+            columns: ProductSchema.columns,
+            actions: actions,
+            onAction: handleAction
+          });
+        }
+      })
+      .catch(err => {
+        if (typeof Toast !== 'undefined') Toast.error(err.message);
+        console.error(err);
+      })
+      .finally(() => {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function handleAction(action, row) {
+    if (action === 'edit') {
+      openEditModal(row);
+    } else if (action === 'delete') {
+      if (typeof Auth !== 'undefined' && !Auth.can('products', 'delete')) {
+        if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menghapus produk.');
+        else alert('Anda tidak memiliki izin untuk menghapus produk.');
+        return;
+      }
+      if (confirm(`Are you sure you want to delete product: ${row.name}?`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.products.delete(row.id)
+          .then(() => {
+            if (typeof Toast !== 'undefined') Toast.success('Product deleted successfully');
+            loadData();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    }
+  }
+
+  function openCreateModal() {
+    if (typeof Auth !== 'undefined' && !Auth.can('products', 'create')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menambah produk.');
+      else alert('Anda tidak memiliki izin untuk menambah produk.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+    const modalBody = Modal.create({
+      title: 'Create Product',
+      onClose: () => {}
+    });
+    modalBody.id = 'products-form-container';
+    
+    Form.render({
+      containerId: 'products-form-container',
+      schema: ProductSchema,
+      mode: 'create',
+      onSubmit: (data) => {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.products.create(data)
+          .then(() => {
+            Modal.hide();
+            if (typeof Toast !== 'undefined') Toast.success('Product created successfully');
+            loadData();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      },
+      onCancel: () => Modal.hide()
+    });
+  }
+
+  function openEditModal(row) {
+    if (typeof Auth !== 'undefined' && !Auth.can('products', 'edit')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk mengubah produk.');
+      else alert('Anda tidak memiliki izin untuk mengubah produk.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+    const modalBody = Modal.create({
+      title: 'Edit Product',
+      onClose: () => {}
+    });
+    modalBody.id = 'products-form-container';
+    
+    Form.render({
+      containerId: 'products-form-container',
+      schema: ProductSchema,
+      mode: 'edit',
+      data: row,
+      onSubmit: (data) => {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.products.update(row.id, data)
+          .then(() => {
+            Modal.hide();
+            if (typeof Toast !== 'undefined') Toast.success('Product updated successfully');
+            loadData();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      },
+      onCancel: () => Modal.hide()
+    });
+  }
+
+  return { init, loadData, openCreateModal, openEditModal };
+})();
+
+// Hook for Scripts.html
+window.initProductsTab = function() {
+  ProductsTab.init();
+};
+</script>

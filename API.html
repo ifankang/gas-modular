@@ -1,0 +1,78 @@
+<script>
+  /**
+   * Frontend API Adapter
+   * Converts google.script.run to Promises.
+   */
+  const API = {
+    call: function(methodName, ...args) {
+      const serverArgs = [...args];
+      if (!methodName.startsWith('auth')) {
+        let token = null;
+        try {
+          const stored = localStorage.getItem('gas_auth_user');
+          if (stored) {
+            const user = JSON.parse(stored);
+            token = user?.token || null;
+          }
+        } catch (e) {
+          console.error('Error retrieving session token:', e);
+        }
+        serverArgs.push(token);
+      }
+
+      return new Promise((resolve, reject) => {
+        // Fallback for development outside GAS
+        if (typeof google === 'undefined' || !google.script || !google.script.run) {
+          console.warn(`[DEV MODE] Mocking API call: ${methodName}`, serverArgs);
+          setTimeout(() => {
+            resolve({ id: 'MOCK-1', _method: methodName, _args: serverArgs });
+          }, 500);
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            if (response && response.success) {
+              resolve(response.data);
+            } else {
+              reject(new Error(response?.message || 'Unknown server error'));
+            }
+          })
+          .withFailureHandler((error) => {
+            reject(error);
+          })
+          [methodName](...serverArgs);
+      });
+    },
+    
+    auth: {
+      login: (email, password) => API.call('authLogin', email, password)
+    },
+    
+    // Generic CRUD endpoints mapped to server controllers
+    users: {
+      list: () => API.call('usersList'),
+      get: (id) => API.call('usersGet', id),
+      create: (data) => API.call('usersCreate', data),
+      update: (id, data) => API.call('usersUpdate', id, data),
+      delete: (id) => API.call('usersDelete', id)
+    },
+    
+    products: {
+      list: () => API.call('productsList'),
+      get: (id) => API.call('productsGet', id),
+      create: (data) => API.call('productsCreate', data),
+      update: (id, data) => API.call('productsUpdate', id, data),
+      delete: (id) => API.call('productsDelete', id)
+    },
+
+    roles: {
+      list: () => API.call('rolesList'),
+      get: (id) => API.call('rolesGet', id),
+      create: (data) => API.call('rolesCreate', data),
+      update: (id, data) => API.call('rolesUpdate', id, data),
+      delete: (id) => API.call('rolesDelete', id),
+      seed: () => API.call('rolesSeed')
+    }
+  };
+</script>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DataBridge — GAS Modular CRUD</title>
+  
+  <!-- Global Styles -->
+  <?!= include('Styles'); ?>
+
+  <!-- Schemas (Source of Truth) -->
+  <?!= include('01_Schema_Frontend'); ?>
+
+  <!-- Core API Adapter -->
+  <?!= include('API'); ?>
+
+  <!-- Reusable UI Components -->
+  <?!= include('Component_Toast'); ?>
+  <?!= include('Component_Loading'); ?>
+  <?!= include('Component_PageHeader'); ?>
+  <?!= include('Component_Pagination'); ?>
+  <?!= include('Component_Table'); ?>
+  <?!= include('Component_Modal'); ?>
+  <?!= include('Component_Form'); ?>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col md:flex-row overflow-hidden text-slate-800 antialiased">
+  
+  <!-- 1. DESKTOP SIDEBAR NAVIGATION (Hidden on mobile) -->
+  <aside class="app-sidebar w-64 bg-white border-r border-slate-200 flex-col z-20 shrink-0">
+    <div class="h-16 border-b border-slate-200 flex items-center px-6 space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20">
+        D
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-slate-900 leading-tight">DataBridge</h2>
+        <span class="text-[10px] font-semibold tracking-wider text-blue-600 uppercase">Modular CRUD</span>
+      </div>
+    </div>
+    
+    <nav class="flex-1 p-3 space-y-1.5 overflow-y-auto">
+      <a href="#" id="nav-desktop-dashboard" data-nav="dashboard" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a href="#" id="nav-desktop-users" data-nav="users" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+        </svg>
+        <span>Pengguna (Users)</span>
+      </a>
+
+      <a href="#" id="nav-desktop-products" data-nav="products" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+        </svg>
+        <span>Produk (Products)</span>
+      </a>
+
+      <a href="#" id="nav-desktop-orders" data-nav="orders" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+        </svg>
+        <span>Pesanan (Orders)</span>
+      </a>
+
+      <a href="#" id="nav-desktop-roles" data-nav="roles" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+        <span>Peran & Izin</span>
+      </a>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="p-3 border-t border-slate-100 text-xs text-slate-400 text-center">
+      Google Apps Script V8 Native
+    </div>
+  </aside>
+
+  <!-- 2. MAIN CONTENT AREA -->
+  <main class="flex-1 flex flex-col overflow-hidden relative w-full">
+    <!-- Top Header Bar -->
+    <header class="bg-white border-b border-slate-200 h-14 md:h-16 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm">
+      <!-- Mobile Brand Logo / Title -->
+      <div class="flex items-center space-x-2.5">
+        <div class="app-mobile-flex w-7 h-7 rounded-md bg-blue-600 items-center justify-center text-white font-bold text-sm shadow-sm">
+          D
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs sm:text-sm font-medium text-slate-500">Live Database</span>
+        </div>
+      </div>
+
+      <!-- Right Header Actions (Profile & Logout) -->
+      <div id="user-profile-bar" class="flex items-center space-x-2 sm:space-x-3">
+        <span id="current-user-role" class="text-xs font-semibold px-2 py-0.5 rounded-full"></span>
+        <span id="current-user-email" class="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 truncate max-w-[150px] sm:max-w-none">
+          Admin
+        </span>
+        <button 
+          onclick="App.logout()" 
+          title="Keluar dari akun"
+          class="text-xs bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md border border-red-200 transition-colors inline-flex items-center space-x-1"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          <span class="app-desktop-inline">Logout</span>
+        </button>
+      </div>
+    </header>
+    
+    <!-- Page Scrollable Container (Bottom padding adjusted for mobile bottom bar) -->
+    <div class="flex-1 overflow-y-auto p-3.5 sm:p-6 pb-28 md:pb-8" id="page-container">
+      
+      <!-- Dashboard Tab -->
+      <div id="tab-dashboard" class="tab-content hidden">
+        <?!= include('Tab_Dashboard'); ?>
+      </div>
+      
+      <!-- Users Tab -->
+      <div id="tab-users" class="tab-content hidden">
+        <?!= include('Tab_Users'); ?>
+      </div>
+
+      <!-- Products Tab -->
+      <div id="tab-products" class="tab-content hidden">
+        <?!= include('Tab_Products'); ?>
+      </div>
+
+      <!-- Orders Tab -->
+      <div id="tab-orders" class="tab-content hidden">
+        <div class="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-lg mx-auto mt-6">
+          <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+          </div>
+          <h2 class="text-lg font-bold text-slate-800">Modul Orders</h2>
+          <p class="text-sm text-slate-500 mt-1">Siap dikembangkan mengikuti protokol ekspansi 4-langkah di <code>AGENTS.md</code>.</p>
+        </div>
+      </div>
+
+      <!-- Roles Tab -->
+      <div id="tab-roles" class="tab-content hidden">
+        <?!= include('Tab_Roles'); ?>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 3. MOBILE BOTTOM NAVIGATION BAR (Thumb Zone on Smartphones) -->
+  <nav class="app-mobile-flex fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 py-1.5 justify-around shadow-lg safe-bottom">
+    <a href="#" id="nav-mobile-dashboard" data-nav="dashboard" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+      </svg>
+      <span class="text-[11px] font-medium leading-none">Home</span>
+    </a>
+
+    <a href="#" id="nav-mobile-users" data-nav="users" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      <span class="text-[11px] font-medium leading-none">Users</span>
+    </a>
+
+    <a href="#" id="nav-mobile-products" data-nav="products" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+      </svg>
+      <span class="text-[11px] font-medium leading-none">Products</span>
+    </a>
+
+    <a href="#" id="nav-mobile-orders" data-nav="orders" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+      </svg>
+      <span class="text-[11px] font-medium leading-none">Orders</span>
+    </a>
+  </nav>
+
+  <!-- Login Page Overlay -->
+  <?!= include('Page_Login'); ?>
+
+  <!-- Global Application Scripts -->
+  <?!= include('Scripts'); ?>
+
+</body>
+</html>

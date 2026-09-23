@@ -1,0 +1,38 @@
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+<script>
+  /**
+   * Toast Component
+   */
+  const Toast = {
+    show: function(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      
+      const toast = document.createElement('div');
+      
+      // Styling based on type
+      let bgColor = 'bg-blue-600';
+      if (type === 'success') bgColor = 'bg-green-600';
+      if (type === 'error') bgColor = 'bg-red-600';
+      
+      toast.className = `${bgColor} text-white px-4 py-3 rounded shadow-lg transition-opacity duration-300 flex items-center justify-between min-w-[250px] pointer-events-auto`;
+      toast.innerHTML = `
+        <span class="text-sm font-medium">${message}</span>
+        <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200 focus:outline-none">&times;</button>
+      `;
+      
+      container.appendChild(toast);
+      
+      // Auto remove
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    },
+    success: (msg) => Toast.show(msg, 'success'),
+    error: (msg) => Toast.show(msg, 'error'),
+    info: (msg) => Toast.show(msg, 'info')
+  };
+</script>

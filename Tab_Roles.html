@@ -1,0 +1,233 @@
+<div class="mb-5 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Peran & Hak Akses (Roles)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola peran, hierarki, dan hak akses modul sistem</p>
+  </div>
+  <div class="flex items-center space-x-2">
+    <!-- Seed / Reset Roles Button -->
+    <button onclick="RolesTab.seedRoles()" class="app-desktop-inline items-center space-x-1.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 border border-amber-200 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm" title="Inisialisasi ulang sheet Roles di spreadsheet">
+      <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+      <span>Inisialisasi Sheet Roles</span>
+    </button>
+    <!-- Desktop Add Button -->
+    <button id="btn-add-role" onclick="RolesTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <span>Tambah Peran</span>
+    </button>
+  </div>
+</div>
+
+<!-- Mobile Floating Action Button (FAB) -->
+<button 
+  id="fab-add-role"
+  onclick="RolesTab.openCreateModal()" 
+  class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+  title="Tambah Peran Cepat"
+>
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+</button>
+
+<div id="roles-table-container"></div>
+
+<script>
+const RolesTab = (function() {
+  const tableContainerId = 'roles-table-container';
+  let isInitialized = false;
+
+  function updateAccessUI() {
+    const canCreate = typeof Auth !== 'undefined' && Auth.can('roles', 'create');
+    const desktopBtn = document.getElementById('btn-add-role');
+    const fabBtn = document.getElementById('fab-add-role');
+    if (desktopBtn) desktopBtn.style.display = canCreate ? '' : 'none';
+    if (fabBtn) fabBtn.style.display = canCreate ? '' : 'none';
+  }
+
+  function init() {
+    updateAccessUI();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData();
+    }
+  }
+
+  function loadData() {
+    updateAccessUI();
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const actions = [];
+    if (typeof Auth !== 'undefined') {
+      if (Auth.can('roles', 'edit')) actions.push('edit');
+      if (Auth.can('roles', 'delete')) actions.push('delete');
+    } else {
+      actions.push('edit', 'delete');
+    }
+
+    API.roles.list()
+      .then(data => {
+        if (typeof Table !== 'undefined') {
+          Table.render({
+            target: tableContainerId,
+            data: data || [],
+            columns: RoleSchema.columns,
+            actions: actions,
+            onAction: handleAction
+          });
+        }
+      })
+      .catch(err => {
+        if (typeof Toast !== 'undefined') Toast.error(err.message);
+        console.error(err);
+      })
+      .finally(() => {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function syncUserRoles() {
+    if (typeof UsersTab !== 'undefined' && typeof UsersTab.prepareRoleOptions === 'function') {
+      UsersTab.prepareRoleOptions();
+    }
+  }
+
+  function handleAction(action, row) {
+    if (action === 'edit') {
+      openEditModal(row);
+    } else if (action === 'delete') {
+      if (typeof Auth !== 'undefined' && !Auth.can('roles', 'delete')) {
+        if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menghapus peran.');
+        else alert('Anda tidak memiliki izin untuk menghapus peran.');
+        return;
+      }
+      if (row.role === 'admin') {
+        if (typeof Toast !== 'undefined') Toast.error('Peran admin adalah peran sistem utama dan tidak dapat dihapus.');
+        else alert('Peran admin tidak dapat dihapus.');
+        return;
+      }
+      if (confirm(`Apakah Anda yakin ingin menghapus peran "${row.name || row.role}"?`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.roles.delete(row.role)
+          .then(() => {
+            if (typeof Toast !== 'undefined') Toast.success('Peran berhasil dihapus');
+            loadData();
+            syncUserRoles();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    }
+  }
+
+  function openCreateModal() {
+    if (typeof Auth !== 'undefined' && !Auth.can('roles', 'create')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menambah peran.');
+      else alert('Anda tidak memiliki izin untuk menambah peran.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+    const modalBody = Modal.create({
+      title: 'Tambah Peran Baru',
+      onClose: () => {}
+    });
+    modalBody.id = 'roles-form-container';
+
+    Form.render({
+      containerId: 'roles-form-container',
+      schema: RoleSchema,
+      mode: 'create',
+      onSubmit: (data) => {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.roles.create(data)
+          .then(() => {
+            Modal.hide();
+            if (typeof Toast !== 'undefined') Toast.success('Peran berhasil ditambahkan');
+            loadData();
+            syncUserRoles();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      },
+      onCancel: () => Modal.hide()
+    });
+  }
+
+  function openEditModal(row) {
+    if (typeof Auth !== 'undefined' && !Auth.can('roles', 'edit')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk mengubah peran.');
+      else alert('Anda tidak memiliki izin untuk mengubah peran.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+    const modalBody = Modal.create({
+      title: 'Edit Peran: ' + (row.name || row.role),
+      onClose: () => {}
+    });
+    modalBody.id = 'roles-form-container';
+
+    Form.render({
+      containerId: 'roles-form-container',
+      schema: RoleSchema,
+      mode: 'edit',
+      data: row,
+      onSubmit: (data) => {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.roles.update(row.role, data)
+          .then(() => {
+            Modal.hide();
+            if (typeof Toast !== 'undefined') Toast.success('Peran berhasil diperbarui');
+            loadData();
+            syncUserRoles();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      },
+      onCancel: () => Modal.hide()
+    });
+
+    // Make role ID readonly in edit mode to preserve primary key
+    const roleInput = document.getElementById('input-role');
+    if (roleInput) {
+      roleInput.readOnly = true;
+      roleInput.classList.add('bg-slate-100', 'cursor-not-allowed', 'text-slate-500');
+    }
+  }
+
+  function seedRoles() {
+    if (confirm('Jalankan inisialisasi / perbarui tabel Roles di Google Spreadsheet?')) {
+      if (typeof Loading !== 'undefined') Loading.show();
+      API.roles.seed()
+        .then(res => {
+          if (typeof Toast !== 'undefined') Toast.success(res.message || 'Tabel Roles di Spreadsheet berhasil diinisialisasi!');
+          loadData();
+          syncUserRoles();
+        })
+        .catch(err => {
+          if (typeof Toast !== 'undefined') Toast.error(err.message);
+        })
+        .finally(() => {
+          if (typeof Loading !== 'undefined') Loading.hide();
+        });
+    }
+  }
+
+  return { init, loadData, openCreateModal, openEditModal, seedRoles };
+})();
+
+// Hook for Scripts.html
+window.initRolesTab = function() {
+  RolesTab.init();
+};
+</script>

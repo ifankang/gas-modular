@@ -1,0 +1,302 @@
+<style>
+.gas-form-group { margin-bottom: 1.1rem; }
+.gas-form-label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.4rem; color: #475569; }
+.gas-form-input, .gas-form-select, .gas-form-textarea { 
+  width: 100%; 
+  padding: 0.65rem 0.875rem; 
+  border: 1px solid #cbd5e1; 
+  border-radius: 0.5rem; 
+  box-sizing: border-box; 
+  font-family: inherit; 
+  font-size: 1rem; /* 16px on mobile prevents iOS viewport auto-zoom */
+  color: #0f172a;
+  background-color: #ffffff;
+  transition: all 0.15s ease;
+  outline: none;
+}
+@media (min-width: 640px) {
+  .gas-form-input, .gas-form-select, .gas-form-textarea {
+    font-size: 0.875rem; /* 14px on desktop */
+  }
+}
+.gas-form-input:focus, .gas-form-select:focus, .gas-form-textarea:focus { 
+  border-color: #3b82f6; 
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); 
+}
+.gas-form-error { color: #ef4444; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 500; display: none; }
+.gas-form-actions { 
+  margin-top: 1.75rem; 
+  display: flex; 
+  flex-direction: column-reverse; 
+  gap: 0.625rem; 
+}
+@media (min-width: 640px) {
+  .gas-form-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+.gas-btn { 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem; 
+  border-radius: 0.5rem; 
+  cursor: pointer; 
+  font-weight: 600; 
+  border: none; 
+  font-size: 0.875rem; 
+  transition: all 0.15s; 
+  min-height: 44px; /* Mobile HIG touch-target guideline */
+}
+.gas-btn-primary { 
+  background: #2563eb; 
+  color: white; 
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+.gas-btn-primary:hover { background: #1d4ed8; }
+.gas-btn-primary:active { transform: scale(0.98); }
+.gas-btn-secondary { 
+  background: #f8fafc; 
+  color: #475569; 
+  border: 1px solid #e2e8f0; 
+}
+.gas-btn-secondary:hover { background: #f1f5f9; color: #1e293b; }
+</style>
+
+<script>
+const Form = (function() {
+  /**
+   * config: {
+   *   containerId: string,
+   *   schema: object (e.g. UserSchema),
+   *   mode: 'create' | 'edit' | 'view',
+   *   data: object (initial data),
+   *   onSubmit: function(formData),
+   *   onCancel: function()
+   * }
+   */
+  function render(config) {
+    const container = document.getElementById(config.containerId);
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const form = document.createElement('form');
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      if (validate(form, config.schema.form.fields)) {
+        const formData = new FormData(form);
+        const dataObj = Object.fromEntries(formData.entries());
+        
+        // Coerce numerical values defined in schema
+        config.schema.columns.forEach(col => {
+          if (col.type === 'number' && dataObj[col.key] !== undefined && dataObj[col.key] !== '') {
+            dataObj[col.key] = Number(dataObj[col.key]);
+          }
+        });
+
+        // Extract checkbox-group values as comma-separated strings
+        config.schema.form.fields.forEach(field => {
+          if (field.type === 'checkbox-group') {
+            const checkedBoxes = Array.from(form.querySelectorAll(`input[name="${field.key}"]:checked`));
+            const vals = checkedBoxes.map(cb => cb.value);
+            dataObj[field.key] = vals.length > 0 ? vals.join(',') : 'none';
+          }
+        });
+
+        if (config.onSubmit) config.onSubmit(dataObj);
+      }
+    };
+    
+    let firstInput = null;
+
+    config.schema.form.fields.forEach((field, index) => {
+      const group = document.createElement('div');
+      group.className = 'gas-form-group';
+      
+      const label = document.createElement('label');
+      label.className = 'gas-form-label';
+      label.innerText = field.label + (field.required && config.mode !== 'view' ? ' *' : '');
+      label.htmlFor = 'input-' + field.key;
+      group.appendChild(label);
+      
+      let input = null;
+      if (field.type === 'select') {
+        input = document.createElement('select');
+        input.className = 'gas-form-select';
+        if (field.options) {
+          field.options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.innerText = opt.label;
+            input.appendChild(option);
+          });
+        }
+      } else if (field.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.className = 'gas-form-textarea';
+        input.rows = 3;
+        if (field.placeholder) input.placeholder = field.placeholder;
+      } else if (field.type === 'checkbox-group') {
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.className = 'grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 pb-1';
+        checkboxContainer.id = 'input-' + field.key;
+        
+        let initialVals = [];
+        if (config.data && config.data[field.key] !== undefined && config.data[field.key] !== null) {
+          const raw = config.data[field.key];
+          if (Array.isArray(raw)) initialVals = raw.map(s => String(s).trim().toLowerCase());
+          else initialVals = String(raw).split(',').map(s => s.trim().toLowerCase());
+        }
+
+        if (field.options) {
+          field.options.forEach(opt => {
+            const checkLabel = document.createElement('label');
+            checkLabel.className = 'inline-flex items-center space-x-2 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 cursor-pointer hover:bg-slate-100 transition-colors select-none';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = field.key;
+            checkbox.value = opt.value;
+            checkbox.className = 'w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500';
+            if (initialVals.includes(String(opt.value).toLowerCase())) {
+              checkbox.checked = true;
+            }
+            if (config.mode === 'view') {
+              checkbox.disabled = true;
+            }
+
+            const span = document.createElement('span');
+            span.innerText = opt.label;
+
+            checkLabel.appendChild(checkbox);
+            checkLabel.appendChild(span);
+            checkboxContainer.appendChild(checkLabel);
+          });
+        }
+        group.appendChild(checkboxContainer);
+      } else {
+        input = document.createElement('input');
+        input.className = 'gas-form-input';
+        
+        if (field.type === 'password') {
+          input.type = 'password';
+          input.placeholder = config.mode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Masukkan kata sandi';
+        } else if (field.type === 'email') {
+          input.type = 'email';
+          input.inputMode = 'email';
+          input.autocomplete = 'email';
+          input.placeholder = field.placeholder || 'contoh@domain.com';
+        } else if (field.type === 'number') {
+          input.type = 'number';
+          input.inputMode = 'numeric';
+          input.placeholder = field.placeholder || '0';
+        } else {
+          input.type = 'text';
+          input.placeholder = field.placeholder || `Masukkan ${field.label.toLowerCase()}`;
+        }
+      }
+      
+      if (input) {
+        input.name = field.key;
+        input.id = 'input-' + field.key;
+        if (field.required) input.required = true;
+        if (config.mode === 'view') input.disabled = true;
+        
+        // Populate initial data
+        if (config.data && config.data[field.key] !== undefined && config.data[field.key] !== null) {
+          input.value = config.data[field.key];
+        }
+        
+        // Disable primary key input in edit mode if specified or if field is role
+        if (config.mode === 'edit' && field.key === config.schema.idField) {
+          input.readOnly = true;
+          input.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+        }
+        
+        group.appendChild(input);
+      }
+      
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'gas-form-error';
+      errorDiv.id = 'error-' + field.key;
+      group.appendChild(errorDiv);
+      
+      form.appendChild(group);
+
+      if (index === 0 && config.mode !== 'view') {
+        firstInput = input;
+      }
+    });
+    
+    if (config.mode !== 'view') {
+      const actions = document.createElement('div');
+      actions.className = 'gas-form-actions';
+      
+      if (config.onCancel) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'gas-btn gas-btn-secondary';
+        cancelBtn.innerText = 'Batal';
+        cancelBtn.onclick = config.onCancel;
+        actions.appendChild(cancelBtn);
+      }
+      
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'submit';
+      submitBtn.className = 'gas-btn gas-btn-primary';
+      submitBtn.innerHTML = `
+        <span>${config.mode === 'edit' ? 'Simpan Perubahan' : 'Tambah Data'}</span>
+      `;
+      actions.appendChild(submitBtn);
+      
+      form.appendChild(actions);
+    }
+    
+    container.appendChild(form);
+
+    // Thoughtful UX: Auto-focus on the first field for instant typing
+    if (firstInput) {
+      setTimeout(() => {
+        firstInput.focus();
+      }, 150);
+    }
+  }
+
+  function validate(form, fields) {
+    let isValid = true;
+    fields.forEach(field => {
+      const errorDiv = document.getElementById('error-' + field.key);
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.innerText = '';
+      }
+
+      if (field.type === 'checkbox-group') {
+        const checked = form.querySelectorAll(`input[name="${field.key}"]:checked`);
+        if (field.required && checked.length === 0) {
+          if (errorDiv) {
+            errorDiv.innerText = `${field.label} minimal pilih satu opsi`;
+            errorDiv.style.display = 'block';
+          }
+          isValid = false;
+        }
+        return;
+      }
+      
+      const input = form.elements[field.key];
+      if (input && field.required && (!input.value || !input.value.trim())) {
+        if (errorDiv) {
+          errorDiv.innerText = `${field.label} wajib diisi`;
+          errorDiv.style.display = 'block';
+        }
+        isValid = false;
+      }
+    });
+    return isValid;
+  }
+
+  return { render };
+})();
+</script>

@@ -1,0 +1,191 @@
+<style>
+.gas-modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end; /* Mobile: bottom sheet */
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .gas-modal-overlay {
+    align-items: center; /* Desktop: centered */
+    padding: 1rem;
+  }
+}
+
+.gas-modal-content {
+  background: white;
+  width: 100%;
+  max-width: 34rem;
+  border-top-left-radius: 1.25rem;
+  border-top-right-radius: 1.25rem;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+  animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (min-width: 640px) {
+  .gas-modal-content {
+    border-radius: 1rem;
+    animation: fadeInModal 0.18s ease-out forwards;
+    max-height: calc(100vh - 3rem);
+  }
+}
+
+@keyframes slideUpModal {
+  from { transform: translateY(100%); opacity: 0.5; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeInModal {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.gas-modal-drag-handle {
+  width: 2.75rem;
+  height: 0.25rem;
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  margin: 0.6rem auto 0 auto;
+}
+
+@media (min-width: 640px) {
+  .gas-modal-drag-handle {
+    display: none;
+  }
+}
+
+.gas-modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .gas-modal-header {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+.gas-modal-title { margin: 0; font-size: 1.125rem; font-weight: 700; color: #0f172a; }
+
+.gas-modal-body { 
+  padding: 1.25rem; 
+  overflow-y: auto; 
+  flex-grow: 1; 
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 640px) {
+  .gas-modal-body {
+    padding: 1.5rem;
+  }
+}
+
+.gas-modal-close { 
+  cursor: pointer; background: #f8fafc; border: 1px solid #e2e8f0; 
+  width: 2rem; height: 2rem; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem; line-height: 1; 
+  color: #64748b; transition: all 0.15s;
+}
+.gas-modal-close:hover { background: #f1f5f9; color: #0f172a; }
+</style>
+
+<script>
+const Modal = (function() {
+  let activeModal = null;
+  let keyHandler = null;
+
+  function create(config) {
+    const { title, contentNode, onClose } = config;
+    
+    // Hide previous if any
+    if (activeModal) hide();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'gas-modal-overlay';
+    
+    const content = document.createElement('div');
+    content.className = 'gas-modal-content';
+    
+    // Mobile Drag Handle Indicator
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'gas-modal-drag-handle';
+    content.appendChild(dragHandle);
+
+    const header = document.createElement('div');
+    header.className = 'gas-modal-header';
+    
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'gas-modal-title';
+    titleEl.innerText = title || '';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'gas-modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.setAttribute('aria-label', 'Tutup');
+    closeBtn.onclick = () => hide(onClose);
+    
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+    
+    const body = document.createElement('div');
+    body.className = 'gas-modal-body safe-bottom';
+    if (contentNode) {
+      body.appendChild(contentNode);
+    }
+    
+    content.appendChild(header);
+    content.appendChild(body);
+    overlay.appendChild(content);
+    
+    // Close on backdrop tap
+    overlay.onclick = (e) => {
+      if(e.target === overlay) hide(onClose);
+    };
+    
+    // Close on Escape key
+    keyHandler = (e) => {
+      if (e.key === 'Escape') hide(onClose);
+    };
+    window.addEventListener('keydown', keyHandler);
+
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+
+    document.body.appendChild(overlay);
+    activeModal = overlay;
+    
+    return body;
+  }
+
+  function hide(onClose) {
+    if (activeModal) {
+      document.body.style.overflow = '';
+      if (keyHandler) {
+        window.removeEventListener('keydown', keyHandler);
+        keyHandler = null;
+      }
+      if (activeModal.parentNode) {
+        activeModal.parentNode.removeChild(activeModal);
+      }
+      activeModal = null;
+      if (typeof onClose === 'function') onClose();
+    }
+  }
+
+  return { create, hide };
+})();
+</script>

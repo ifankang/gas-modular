@@ -1,0 +1,182 @@
+<!-- Page_Login.html -->
+<div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-50">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+    <!-- Header Card -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white text-center">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-white/10 rounded-xl mb-3 backdrop-blur-sm shadow-inner">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-bold tracking-tight">DataBridge Portal</h2>
+      <p class="text-blue-100 text-sm mt-1">GAS Modular CRUD Framework</p>
+    </div>
+
+    <!-- Login Form Body -->
+    <div class="p-8">
+      <!-- Error Alert -->
+      <div id="login-error-alert" class="hidden mb-5 p-3.5 bg-red-50 border-l-4 border-red-500 rounded-r-lg text-red-700 text-sm">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 mr-2 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+          </svg>
+          <span id="login-error-message">Terjadi kesalahan login</span>
+        </div>
+      </div>
+
+      <form id="form-login" onsubmit="LoginModule.handleSubmit(event)" class="space-y-5">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5" for="login-email">
+            Alamat Email
+          </label>
+          <input 
+            type="email" 
+            id="login-email" 
+            name="email" 
+            required 
+            placeholder="admin@databridge.com"
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition-all outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5" for="login-password">
+            Kata Sandi
+          </label>
+          <input 
+            type="password" 
+            id="login-password" 
+            name="password" 
+            required 
+            placeholder="••••••••••••"
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition-all outline-none"
+          />
+        </div>
+
+        <button 
+          type="submit" 
+          id="btn-login-submit"
+          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
+        >
+          <span id="btn-login-text">Masuk ke Aplikasi</span>
+          <svg id="login-spinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Quick Demo Fill Card for All RBAC Roles -->
+      <div class="mt-6 pt-5 border-t border-slate-100 space-y-2 text-xs text-slate-500">
+        <div class="font-medium text-slate-700">Uji Hak Akses Cepat (1-Klik Akun Demo):</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button 
+            type="button" 
+            onclick="LoginModule.fillAccount('admin@databridge.com', 'admin2026123')" 
+            class="text-left px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold border border-blue-200 transition-colors"
+          >
+            👑 Admin <span class="block text-[10px] font-normal text-blue-600">Full Access</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="LoginModule.fillAccount('manager@example.com', 'manager123')" 
+            class="text-left px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold border border-purple-200 transition-colors"
+          >
+            👔 Manager <span class="block text-[10px] font-normal text-purple-600">Read-Only Users</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="LoginModule.fillAccount('staff@example.com', 'staff123')" 
+            class="text-left px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold border border-emerald-200 transition-colors"
+          >
+            👷 Staff <span class="block text-[10px] font-normal text-emerald-600">No Users, No Delete</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="LoginModule.fillAccount('viewer@example.com', 'viewer123')" 
+            class="text-left px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 transition-colors"
+          >
+            👁️ Viewer <span class="block text-[10px] font-normal text-slate-600">Read-Only Produk</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LoginModule = (function() {
+  function fillAccount(email, password) {
+    document.getElementById('login-email').value = email;
+    document.getElementById('login-password').value = password;
+    hideError();
+  }
+
+  function fillDefaultAdmin() {
+    fillAccount('admin@databridge.com', 'admin2026123');
+  }
+
+  function showError(msg) {
+    const alert = document.getElementById('login-error-alert');
+    const msgEl = document.getElementById('login-error-message');
+    if (alert && msgEl) {
+      msgEl.innerText = msg || 'Terjadi kesalahan saat masuk';
+      alert.classList.remove('hidden');
+    }
+  }
+
+  function hideError() {
+    const alert = document.getElementById('login-error-alert');
+    if (alert) alert.classList.add('hidden');
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('btn-login-submit');
+    const text = document.getElementById('btn-login-text');
+    const spinner = document.getElementById('login-spinner');
+    
+    if (btn) btn.disabled = loading;
+    if (text) text.innerText = loading ? 'Memverifikasi...' : 'Masuk ke Aplikasi';
+    if (spinner) {
+      if (loading) spinner.classList.remove('hidden');
+      else spinner.classList.add('hidden');
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    hideError();
+
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    setLoading(true);
+
+    API.auth.login(email, password)
+      .then(userData => {
+        if (typeof Toast !== 'undefined') {
+          Toast.success(`Selamat datang kembali, ${userData.name || userData.email}!`);
+        }
+        // Save auth state
+        localStorage.setItem('gas_auth_user', JSON.stringify(userData));
+        
+        // Hide login modal and reveal app shell
+        document.getElementById('login-screen').classList.add('hidden');
+        if (typeof App !== 'undefined' && App.onLoginSuccess) {
+          App.onLoginSuccess(userData);
+        }
+      })
+      .catch(err => {
+        showError(err.message || 'Gagal masuk. Periksa email dan password Anda.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }
+
+  return {
+    fillDefaultAdmin,
+    handleSubmit
+  };
+})();
+</script>

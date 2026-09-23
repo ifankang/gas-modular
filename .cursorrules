@@ -1,0 +1,15 @@
+# Cursor / AI Agent Rules for GAS Modular CRUD Framework
+
+Before writing, modifying, or expanding any code in this project, you MUST read and strictly adhere to:
+1. `AGENTS.md` (Detailed Architecture & Expansion Rules)
+2. `PRD.md` (Product Requirements Document)
+
+Key Principles:
+- Schema is the Single Source of Truth (no hardcoded form fields or table columns in UI).
+- Use generic CRUD from `11_Repository.gs` and `10_Database.gs`. Do NOT duplicate CRUD logic per entity.
+- Never leak spreadsheet cell coordinates (row[0], row[1]) outside `10_Database.gs`.
+- Always use `API.html` Promise adapter. Never call `google.script.run` directly in components.
+- Do NOT introduce heavy npm/Node dependencies, bundlers, or frameworks (React/Vue/TypeScript). Keep it Vanilla JS + Tailwind CDN + Google Apps Script native.
+- Follow file naming conventions (`<XX>_<Entity><Layer>.gs`, `Tab_<Entity>.html`, `Component_<Name>.html`).
+- Automated RAM Caching & Invalidation is handled inside `10_Database.gs`. Never bypass Database module to avoid stale cache.
+- Never put `<?!= include('...'); ?>` inside HTML comments if the file does not exist, as GAS evaluates it anyway.

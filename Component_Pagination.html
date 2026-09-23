@@ -1,0 +1,82 @@
+<style>
+.gas-pagination { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; border-top: 1px solid #e5e7eb; margin-top: 1rem; }
+.gas-pagination-info { font-size: 0.875rem; color: #4b5563; }
+.gas-pagination-controls { display: flex; gap: 0.5rem; }
+.gas-pagination-btn { 
+  background: white; border: 1px solid #d1d5db; padding: 0.375rem 0.75rem; 
+  font-size: 0.875rem; border-radius: 0.375rem; cursor: pointer; color: #374151; font-weight: 500;
+  transition: all 0.15s;
+}
+.gas-pagination-btn:hover:not(:disabled) { background: #f9fafb; border-color: #9ca3af; }
+.gas-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<script>
+const Pagination = (function() {
+  /**
+   * config: {
+   *   containerId: string,
+   *   currentPage: number,
+   *   pageSize: number,
+   *   totalItems: number,
+   *   onPageChange: function(newPage)
+   * }
+   */
+  function render(config) {
+    const container = document.getElementById(config.containerId);
+    if (!container) return;
+
+    const totalPages = Math.ceil(config.totalItems / config.pageSize) || 1;
+    const currentPage = config.currentPage || 1;
+    
+    container.innerHTML = '';
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'gas-pagination';
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'gas-pagination-info';
+    
+    if (config.totalItems === 0) {
+      infoDiv.innerText = 'No items';
+    } else {
+      const startItem = (currentPage - 1) * config.pageSize + 1;
+      const endItem = Math.min(currentPage * config.pageSize, config.totalItems);
+      infoDiv.innerHTML = `Showing <strong>${startItem}</strong> to <strong>${endItem}</strong> of <strong>${config.totalItems}</strong> results`;
+    }
+    
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'gas-pagination-controls';
+    
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'gas-pagination-btn';
+    prevBtn.innerText = 'Previous';
+    prevBtn.disabled = currentPage <= 1;
+    prevBtn.onclick = () => {
+      if (currentPage > 1) {
+        config.onPageChange(currentPage - 1);
+      }
+    };
+    
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'gas-pagination-btn';
+    nextBtn.innerText = 'Next';
+    nextBtn.disabled = currentPage >= totalPages;
+    nextBtn.onclick = () => {
+      if (currentPage < totalPages) {
+        config.onPageChange(currentPage + 1);
+      }
+    };
+    
+    controlsDiv.appendChild(prevBtn);
+    controlsDiv.appendChild(nextBtn);
+    
+    wrapper.appendChild(infoDiv);
+    wrapper.appendChild(controlsDiv);
+    
+    container.appendChild(wrapper);
+  }
+
+  return { render };
+})();
+</script>

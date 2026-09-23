@@ -1,0 +1,29 @@
+# Apps Script / Clasp credentials (DO NOT COMMIT SENSITIVE KEYS)
+.clasprc.json
+*.credentials.json
+credentials.json
+token.json
+.env
+.env.*
+.env.local
+
+# Operating System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editor & Tooling
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.gemini/
+
+# Temporary / Scratch files
+scratch/
+tmp/
+temp/
+*.log
+node_modules/

@@ -1,0 +1,246 @@
+<div class="mb-5 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Pengguna (Users)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola akun pengguna, email, dan status aktif</p>
+  </div>
+  <!-- Desktop Add Button -->
+  <button id="btn-add-user" onclick="UsersTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    <span>Tambah Pengguna</span>
+  </button>
+</div>
+
+<!-- Mobile Floating Action Button (FAB) -->
+<button 
+  id="fab-add-user"
+  onclick="UsersTab.openCreateModal()" 
+  class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+  title="Tambah Pengguna Cepat"
+>
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+</button>
+
+<div id="users-table-container"></div>
+
+<script>
+const UsersTab = (function() {
+  const tableContainerId = 'users-table-container';
+  let isInitialized = false;
+
+  function updateAccessUI() {
+    const canCreate = typeof Auth !== 'undefined' && Auth.can('users', 'create');
+    const desktopBtn = document.getElementById('btn-add-user');
+    const fabBtn = document.getElementById('fab-add-user');
+    if (desktopBtn) desktopBtn.style.display = canCreate ? '' : 'none';
+    if (fabBtn) fabBtn.style.display = canCreate ? '' : 'none';
+  }
+
+  function prepareRoleOptions() {
+    if (typeof API === 'undefined' || !API.roles) {
+      return Promise.resolve();
+    }
+    return API.roles.list()
+      .then(roles => {
+        if (roles && roles.length > 0 && typeof UserSchema !== 'undefined' && UserSchema.form) {
+          const roleField = UserSchema.form.fields.find(f => f.key === 'role');
+          if (roleField) {
+            roleField.options = roles.map(r => ({
+              value: r.role,
+              label: r.name ? `${r.name} (${r.role})` : r.role
+            }));
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Could not load dynamic roles from API, falling back to cached roles:', err);
+        if (typeof App !== 'undefined' && App.currentUser && App.currentUser.rolesMap && typeof UserSchema !== 'undefined' && UserSchema.form) {
+          const roleField = UserSchema.form.fields.find(f => f.key === 'role');
+          if (roleField) {
+            roleField.options = Object.keys(App.currentUser.rolesMap).map(k => {
+              const r = App.currentUser.rolesMap[k];
+              return {
+                value: k,
+                label: (r && r.name) ? `${r.name} (${k})` : k
+              };
+            });
+          }
+        }
+      });
+  }
+
+  function init() {
+    updateAccessUI();
+    prepareRoleOptions();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData(); // Reload data when switching back to tab
+    }
+  }
+
+  function loadData() {
+    updateAccessUI();
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const actions = [];
+    if (typeof Auth !== 'undefined') {
+      if (Auth.can('users', 'edit')) actions.push('edit');
+      if (Auth.can('users', 'delete')) actions.push('delete');
+    } else {
+      actions.push('edit', 'delete');
+    }
+
+    API.users.list()
+      .then(data => {
+        if (typeof Table !== 'undefined') {
+          Table.render({
+            target: tableContainerId,
+            data: data,
+            columns: UserSchema.columns,
+            actions: actions,
+            onAction: handleAction
+          });
+        }
+      })
+      .catch(err => {
+        if (typeof Toast !== 'undefined') Toast.error(err.message);
+        console.error(err);
+      })
+      .finally(() => {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function handleAction(action, row) {
+    if (action === 'edit') {
+      openEditModal(row);
+    } else if (action === 'delete') {
+      if (typeof Auth !== 'undefined' && !Auth.can('users', 'delete')) {
+        if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menghapus pengguna.');
+        else alert('Anda tidak memiliki izin untuk menghapus pengguna.');
+        return;
+      }
+      if (confirm(`Are you sure you want to delete user: ${row.name}?`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.users.delete(row.id)
+          .then(() => {
+            if (typeof Toast !== 'undefined') Toast.success('User deleted successfully');
+            loadData();
+          })
+          .catch(err => {
+            if (typeof Toast !== 'undefined') Toast.error(err.message);
+          })
+          .finally(() => {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    }
+  }
+
+  function openCreateModal() {
+    if (typeof Auth !== 'undefined' && !Auth.can('users', 'create')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk menambah pengguna.');
+      else alert('Anda tidak memiliki izin untuk menambah pengguna.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    prepareRoleOptions().finally(() => {
+      if (typeof Loading !== 'undefined') Loading.hide();
+
+      const modalBody = Modal.create({
+        title: 'Tambah Pengguna Baru',
+        onClose: () => {}
+      });
+      modalBody.id = 'users-form-container';
+      
+      Form.render({
+        containerId: 'users-form-container',
+        schema: UserSchema,
+        mode: 'create',
+        onSubmit: (data) => {
+          if (typeof Loading !== 'undefined') Loading.show();
+          API.users.create(data)
+            .then(() => {
+              Modal.hide();
+              if (typeof Toast !== 'undefined') Toast.success('Pengguna berhasil ditambahkan');
+              loadData();
+            })
+            .catch(err => {
+              if (typeof Toast !== 'undefined') Toast.error(err.message);
+            })
+            .finally(() => {
+              if (typeof Loading !== 'undefined') Loading.hide();
+            });
+        },
+        onCancel: () => Modal.hide()
+      });
+    });
+  }
+
+  function openEditModal(row) {
+    if (typeof Auth !== 'undefined' && !Auth.can('users', 'edit')) {
+      if (typeof Toast !== 'undefined') Toast.error('Anda tidak memiliki izin untuk mengubah pengguna.');
+      else alert('Anda tidak memiliki izin untuk mengubah pengguna.');
+      return;
+    }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    prepareRoleOptions().finally(() => {
+      if (typeof Loading !== 'undefined') Loading.hide();
+
+      // Ensure row.role exists in options
+      if (typeof UserSchema !== 'undefined' && UserSchema.form && UserSchema.form.fields) {
+        const roleField = UserSchema.form.fields.find(f => f.key === 'role');
+        if (roleField && roleField.options && row.role && !roleField.options.some(opt => opt.value === row.role)) {
+          roleField.options.push({
+            value: row.role,
+            label: row.role
+          });
+        }
+      }
+
+      const modalBody = Modal.create({
+        title: 'Edit Pengguna: ' + (row.name || row.email),
+        onClose: () => {}
+      });
+      modalBody.id = 'users-form-container';
+      
+      Form.render({
+        containerId: 'users-form-container',
+        schema: UserSchema,
+        mode: 'edit',
+        data: row,
+        onSubmit: (data) => {
+          if (typeof Loading !== 'undefined') Loading.show();
+          API.users.update(row.id, data)
+            .then(() => {
+              Modal.hide();
+              if (typeof Toast !== 'undefined') Toast.success('Pengguna berhasil diperbarui');
+              loadData();
+            })
+            .catch(err => {
+              if (typeof Toast !== 'undefined') Toast.error(err.message);
+            })
+            .finally(() => {
+              if (typeof Loading !== 'undefined') Loading.hide();
+            });
+        },
+        onCancel: () => Modal.hide()
+      });
+    });
+  }
+
+  return { init, loadData, openCreateModal, openEditModal, prepareRoleOptions };
+})();
+
+// Hook for Scripts.html
+window.initUsersTab = function() {
+  UsersTab.init();
+};
+</script>
