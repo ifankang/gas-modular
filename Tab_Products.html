@@ -35,8 +35,30 @@ const ProductsTab = (function() {
     if (fabBtn) fabBtn.style.display = canCreate ? '' : 'none';
   }
 
+  function prepareCategoryOptions() {
+    if (typeof API === 'undefined' || !API.categories) {
+      return Promise.resolve();
+    }
+    return API.categories.list()
+      .then(categories => {
+        if (categories && categories.length > 0 && typeof ProductSchema !== 'undefined' && ProductSchema.form) {
+          const catField = ProductSchema.form.fields.find(f => f.key === 'category_id');
+          if (catField) {
+            catField.options = categories.map(c => ({
+              value: c.id,
+              label: c.name ? `${c.name} (${c.code || c.id})` : c.id
+            }));
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Could not load categories from API:', err);
+      });
+  }
+
   function init() {
     updateAccessUI();
+    prepareCategoryOptions();
     if (!isInitialized) {
       loadData();
       isInitialized = true;
@@ -111,32 +133,39 @@ const ProductsTab = (function() {
       return;
     }
     if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
-    const modalBody = Modal.create({
-      title: 'Create Product',
-      onClose: () => {}
-    });
-    modalBody.id = 'products-form-container';
-    
-    Form.render({
-      containerId: 'products-form-container',
-      schema: ProductSchema,
-      mode: 'create',
-      onSubmit: (data) => {
-        if (typeof Loading !== 'undefined') Loading.show();
-        API.products.create(data)
-          .then(() => {
-            Modal.hide();
-            if (typeof Toast !== 'undefined') Toast.success('Product created successfully');
-            loadData();
-          })
-          .catch(err => {
-            if (typeof Toast !== 'undefined') Toast.error(err.message);
-          })
-          .finally(() => {
-            if (typeof Loading !== 'undefined') Loading.hide();
-          });
-      },
-      onCancel: () => Modal.hide()
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    prepareCategoryOptions().finally(() => {
+      if (typeof Loading !== 'undefined') Loading.hide();
+
+      const modalBody = Modal.create({
+        title: 'Create Product',
+        onClose: () => {}
+      });
+      modalBody.id = 'products-form-container';
+      
+      Form.render({
+        containerId: 'products-form-container',
+        schema: ProductSchema,
+        mode: 'create',
+        onSubmit: (data) => {
+          if (typeof Loading !== 'undefined') Loading.show();
+          API.products.create(data)
+            .then(() => {
+              Modal.hide();
+              if (typeof Toast !== 'undefined') Toast.success('Product created successfully');
+              loadData();
+            })
+            .catch(err => {
+              if (typeof Toast !== 'undefined') Toast.error(err.message);
+            })
+            .finally(() => {
+              if (typeof Loading !== 'undefined') Loading.hide();
+            });
+        },
+        onCancel: () => Modal.hide()
+      });
     });
   }
 
@@ -147,37 +176,50 @@ const ProductsTab = (function() {
       return;
     }
     if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
-    const modalBody = Modal.create({
-      title: 'Edit Product',
-      onClose: () => {}
-    });
-    modalBody.id = 'products-form-container';
-    
-    Form.render({
-      containerId: 'products-form-container',
-      schema: ProductSchema,
-      mode: 'edit',
-      data: row,
-      onSubmit: (data) => {
-        if (typeof Loading !== 'undefined') Loading.show();
-        API.products.update(row.id, data)
-          .then(() => {
-            Modal.hide();
-            if (typeof Toast !== 'undefined') Toast.success('Product updated successfully');
-            loadData();
-          })
-          .catch(err => {
-            if (typeof Toast !== 'undefined') Toast.error(err.message);
-          })
-          .finally(() => {
-            if (typeof Loading !== 'undefined') Loading.hide();
-          });
-      },
-      onCancel: () => Modal.hide()
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    prepareCategoryOptions().finally(() => {
+      if (typeof Loading !== 'undefined') Loading.hide();
+
+      // Ensure row.category_id exists in options
+      const catField = ProductSchema.form && ProductSchema.form.fields && ProductSchema.form.fields.find(f => f.key === 'category_id');
+      if (catField && catField.options && row.category_id && !catField.options.some(opt => opt.value === row.category_id)) {
+        catField.options.push({ value: row.category_id, label: row.category_id });
+      }
+
+      const modalBody = Modal.create({
+        title: 'Edit Product',
+        onClose: () => {}
+      });
+      modalBody.id = 'products-form-container';
+      
+      Form.render({
+        containerId: 'products-form-container',
+        schema: ProductSchema,
+        mode: 'edit',
+        data: row,
+        onSubmit: (data) => {
+          if (typeof Loading !== 'undefined') Loading.show();
+          API.products.update(row.id, data)
+            .then(() => {
+              Modal.hide();
+              if (typeof Toast !== 'undefined') Toast.success('Product updated successfully');
+              loadData();
+            })
+            .catch(err => {
+              if (typeof Toast !== 'undefined') Toast.error(err.message);
+            })
+            .finally(() => {
+              if (typeof Loading !== 'undefined') Loading.hide();
+            });
+        },
+        onCancel: () => Modal.hide()
+      });
     });
   }
 
-  return { init, loadData, openCreateModal, openEditModal };
+  return { init, loadData, openCreateModal, openEditModal, prepareCategoryOptions };
 })();
 
 // Hook for Scripts.html

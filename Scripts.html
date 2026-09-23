@@ -9,22 +9,27 @@
       users: ['create', 'read', 'edit', 'delete'],
       products: ['create', 'read', 'edit', 'delete'],
       orders: ['create', 'read', 'edit', 'delete'],
-      roles: ['create', 'read', 'edit', 'delete']
+      categories: ['create', 'read', 'edit', 'delete'],
+      roles: ['create', 'read', 'edit', 'delete'],
+      categories: ['create', 'read', 'edit', 'delete']
     },
     manager: {
       dashboard: ['read'],
       users: ['read'],
       products: ['create', 'read', 'edit', 'delete'],
-      orders: ['create', 'read', 'edit', 'delete']
+      orders: ['create', 'read', 'edit', 'delete'],
+      categories: ['create', 'read', 'edit', 'delete']
     },
     staff: {
       dashboard: ['read'],
       products: ['create', 'read', 'edit'],
-      orders: ['read', 'create', 'edit']
+      orders: ['read', 'create', 'edit'],
+      categories: ['read']
     },
     viewer: {
       dashboard: ['read'],
-      products: ['read']
+      products: ['read'],
+      categories: ['read']
     }
   };
 

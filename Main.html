@@ -59,6 +59,13 @@
         <span>Produk (Products)</span>
       </a>
 
+      <a href="#" id="nav-desktop-categories" data-nav="categories" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
+        <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+        </svg>
+        <span>Kategori</span>
+      </a>
+
       <a href="#" id="nav-desktop-orders" data-nav="orders" class="flex items-center px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group">
         <svg class="w-5 h-5 mr-3 shrink-0 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
@@ -132,6 +139,11 @@
         <?!= include('Tab_Products'); ?>
       </div>
 
+      <!-- Categories Tab -->
+      <div id="tab-categories" class="tab-content hidden">
+        <?!= include('Tab_Categories'); ?>
+      </div>
+
       <!-- Orders Tab -->
       <div id="tab-orders" class="tab-content hidden">
         <div class="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-lg mx-auto mt-6">
@@ -172,6 +184,13 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
       </svg>
       <span class="text-[11px] font-medium leading-none">Products</span>
+    </a>
+
+    <a href="#" id="nav-mobile-categories" data-nav="categories" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+      </svg>
+      <span class="text-[11px] font-medium leading-none">Kategori</span>
     </a>
 
     <a href="#" id="nav-mobile-orders" data-nav="orders" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors group">

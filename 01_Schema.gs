@@ -38,20 +38,56 @@ const ProductSchema = {
   idPrefix: 'PRD',
   columns: [
     { key: 'id', label: 'ID', type: 'text' },
+    { key: 'code', label: 'Kode', type: 'text', searchable: true, sortable: true },
     { key: 'name', label: 'Nama Produk', type: 'text', searchable: true, sortable: true },
-    { key: 'price', label: 'Harga', type: 'number', sortable: true },
-    { key: 'stock', label: 'Stok', type: 'number' },
+    { key: 'category_id', label: 'Kategori', type: 'badge' },
+    { key: 'price', label: 'Harga Jual', type: 'number', sortable: true },
+    { key: 'cost_price', label: 'Harga Modal', type: 'number', sortable: true },
+    { key: 'stock', label: 'Stok', type: 'number', sortable: true },
+    { key: 'unit', label: 'Satuan', type: 'text' },
+    { key: 'status', label: 'Status', type: 'badge' },
     { key: 'created_at', label: 'Dibuat', type: 'date' },
     { key: 'updated_at', label: 'Diupdate', type: 'date' }
   ],
   form: {
     fields: [
+      { key: 'code', label: 'Kode Produk', type: 'text', required: true },
       { key: 'name', label: 'Nama Produk', type: 'text', required: true },
-      { key: 'price', label: 'Harga', type: 'number', required: true },
-      { key: 'stock', label: 'Stok', type: 'number', required: true }
+      { key: 'category_id', label: 'Kategori', type: 'select', options: [], required: true },
+      { key: 'unit', label: 'Satuan (pcs, box, kg, dll)', type: 'text', required: true },
+      { key: 'price', label: 'Harga Jual', type: 'number', required: true },
+      { key: 'cost_price', label: 'Harga Modal / Beli', type: 'number', required: true },
+      { key: 'stock', label: 'Stok Awal', type: 'number', required: true },
+      { key: 'status', label: 'Status', type: 'select', options: [
+        { value: 'active', label: 'Aktif' },
+        { value: 'inactive', label: 'Nonaktif' }
+      ], required: true }
     ]
   }
 };
+
+const CategorySchema = {
+  resource: 'categories',
+  sheet: 'Categories',
+  idField: 'id',
+  idPrefix: 'CAT',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'code', label: 'Kode', type: 'badge', searchable: true, sortable: true },
+    { key: 'name', label: 'Nama Kategori', type: 'text', searchable: true, sortable: true },
+    { key: 'description', label: 'Deskripsi', type: 'text' },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'code', label: 'Kode Kategori (e.g. ELK, FNB, ATK)', type: 'text', required: true },
+      { key: 'name', label: 'Nama Kategori', type: 'text', required: true },
+      { key: 'description', label: 'Deskripsi / Catatan', type: 'textarea' }
+    ]
+  }
+};
+
+
 
 const RoleSchema = {
   resource: 'roles',

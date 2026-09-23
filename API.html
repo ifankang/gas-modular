@@ -73,6 +73,14 @@
       update: (id, data) => API.call('rolesUpdate', id, data),
       delete: (id) => API.call('rolesDelete', id),
       seed: () => API.call('rolesSeed')
+    },
+
+    categories: {
+      list: () => API.call('categoriesList'),
+      get: (id) => API.call('categoriesGet', id),
+      create: (data) => API.call('categoriesCreate', data),
+      update: (id, data) => API.call('categoriesUpdate', id, data),
+      delete: (id) => API.call('categoriesDelete', id)
     }
   };
 </script>

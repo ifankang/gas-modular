@@ -26,7 +26,8 @@ const Config = {
         users: ['read', 'create', 'edit', 'delete'],
         products: ['read', 'create', 'edit', 'delete'],
         orders: ['read', 'create', 'edit', 'delete'],
-        roles: ['read', 'create', 'edit', 'delete']
+        roles: ['read', 'create', 'edit', 'delete'],
+        categories: ['read', 'create', 'edit', 'delete']
       }
     },
     manager: {
@@ -34,20 +35,23 @@ const Config = {
       permissions: {
         users: ['read'],
         products: ['read', 'create', 'edit', 'delete'],
-        orders: ['read', 'create', 'edit', 'delete']
+        orders: ['read', 'create', 'edit', 'delete'],
+        categories: ['read', 'create', 'edit', 'delete']
       }
     },
     staff: {
       name: 'Staff',
       permissions: {
         products: ['read', 'create', 'edit'],
-        orders: ['read', 'create', 'edit']
+        orders: ['read', 'create', 'edit'],
+        categories: ['read']
       }
     },
     viewer: {
       name: 'Viewer',
       permissions: {
-        products: ['read']
+        products: ['read'],
+        categories: ['read']
       }
     }
   },

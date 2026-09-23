@@ -196,10 +196,101 @@ function seedDatabase() {
     });
   }
 
+  // 4. Seed Categories Sheet
+  seedCategories(ss, now);
+
+  // 5. Migrate Products Sheet (add new columns if missing)
+  migrateProductsSheet(ss);
+
   Logger.log('Database seeded and verified successfully.');
   return {
     success: true,
-    message: 'Sheet "Users", "Products", dan "Roles" berhasil diverifikasi dan disiapkan!'
+    message: 'Sheet "Users", "Products", "Roles", dan "Categories" berhasil diverifikasi dan disiapkan!'
   };
+}
+
+/**
+ * seedCategories()
+ * Inisialisasi sheet Categories dengan header dan 3 baris data sampel.
+ * Mengikuti pola seedRoles(): buat sheet jika belum ada, tulis header & data jika kosong,
+ * upsert via Database jika sudah ada isi.
+ */
+function seedCategories(ss, now) {
+  if (!ss) ss = SpreadsheetApp.openById(Config.SPREADSHEET_ID);
+  if (!now) now = new Date().toISOString();
+
+  let catSheet = ss.getSheetByName('Categories');
+  if (!catSheet) {
+    catSheet = ss.insertSheet('Categories');
+  }
+
+  const catHeaders = ['id', 'code', 'name', 'description', 'created_at', 'updated_at'];
+
+  const sampleCategories = [
+    ['CAT-000001', 'ELK', 'Elektronik', 'Peralatan elektronik, gadget, dan aksesori digital', now, now],
+    ['CAT-000002', 'FNB', 'Food & Beverage', 'Produk makanan dan minuman kemasan', now, now],
+    ['CAT-000003', 'ATK', 'Alat Tulis Kantor', 'Perlengkapan kantor dan operasional harian', now, now]
+  ];
+
+  if (catSheet.getLastRow() === 0) {
+    // Brand new / completely empty sheet
+    catSheet.appendRow(catHeaders);
+    sampleCategories.forEach(function(row) { catSheet.appendRow(row); });
+  } else {
+    // Existing sheet: ensure each sample category is present (upsert by id)
+    Database.clearCache('Categories');
+    const existingCats = Database.findAll('Categories');
+    sampleCategories.forEach(function(row) {
+      const existing = existingCats.find(function(c) { return String(c.id) === String(row[0]); });
+      if (!existing) {
+        Database.create('Categories', {
+          id:          row[0],
+          code:        row[1],
+          name:        row[2],
+          description: row[3],
+          created_at:  now,
+          updated_at:  now
+        });
+      }
+    });
+  }
+
+  Logger.log('Categories sheet seeded/verified.');
+}
+
+/**
+ * migrateProductsSheet()
+ * Tambahkan kolom baru (category_id, code, unit, cost_price) ke sheet Products
+ * jika kolom tersebut belum ada. Data baris yang sudah ada tidak diubah.
+ */
+function migrateProductsSheet(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(Config.SPREADSHEET_ID);
+
+  const productSheet = ss.getSheetByName('Products');
+  if (!productSheet || productSheet.getLastRow() === 0) {
+    // Sheet belum ada atau kosong — tidak ada yang perlu di-migrate
+    return;
+  }
+
+  const newColumns = ['category_id', 'code', 'unit', 'cost_price'];
+  const lastCol = productSheet.getLastColumn();
+  const currentHeaders = productSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  let colIndex = lastCol; // 1-based, will be incremented per new column added
+  newColumns.forEach(function(col) {
+    if (currentHeaders.indexOf(col) === -1) {
+      colIndex++;
+      productSheet.getRange(1, colIndex).setValue(col);
+      currentHeaders.push(col); // keep local array in sync
+    }
+  });
+
+  if (colIndex > lastCol) {
+    // Kolom baru ditambahkan — invalidate cache agar header mapping ter-refresh
+    Database.clearCache('Products');
+    Logger.log('Products sheet migrated: added columns ' + newColumns.filter(function(c) { return currentHeaders.slice(0, lastCol).indexOf(c) === -1; }).join(', '));
+  } else {
+    Logger.log('Products sheet migration: no new columns needed.');
+  }
 }
 
