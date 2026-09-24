@@ -265,6 +265,64 @@ const StockMutationSchema = {
     ]
   }
 };
+
+const OrderSchema = {
+  resource: 'orders',
+  sheet: 'Orders',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'order_no', label: 'No. Transaksi', type: 'badge', searchable: true, sortable: true },
+    { key: 'type', label: 'Tipe', type: 'badge', searchable: true, sortable: true },
+    { key: 'date', label: 'Tanggal', type: 'date', sortable: true },
+    { key: 'destination_warehouse_id', label: 'Gudang Target / Pengirim', type: 'badge', searchable: true },
+    { key: 'contact_name', label: 'Pemasok / Pelanggan', type: 'text', searchable: true },
+    { key: 'total_amount', label: 'Total Transaksi', type: 'number', sortable: true },
+    { key: 'status', label: 'Status', type: 'badge' },
+    { key: 'approved_by', label: 'Disetujui Oleh', type: 'text' },
+    { key: 'approved_at', label: 'Disetujui Pada', type: 'date' },
+    { key: 'received_by', label: 'Diterima Oleh', type: 'text' },
+    { key: 'received_at', label: 'Diterima Pada', type: 'date' },
+    { key: 'notes', label: 'Catatan', type: 'text' },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'order_no', label: 'No. Order / Surat Jalan', type: 'text', required: true },
+      { key: 'type', label: 'Tipe Pesanan', type: 'select', options: [
+        { value: 'PURCHASE', label: 'Purchase Order (Pengadaan)' },
+        { value: 'SALES', label: 'Sales Order (Penjualan)' }
+      ], required: true },
+      { key: 'destination_warehouse_id', label: 'Gudang', type: 'select', options: [], required: true },
+      { key: 'contact_name', label: 'Pemasok / Pelanggan', type: 'text', required: true },
+      { key: 'notes', label: 'Catatan Transaksi', type: 'textarea' }
+    ]
+  }
+};
+
+const OrderItemSchema = {
+  resource: 'order_items',
+  sheet: 'OrderItems',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'order_id', label: 'ID Order', type: 'badge', searchable: true },
+    { key: 'product_id', label: 'ID Produk', type: 'badge', searchable: true },
+    { key: 'quantity', label: 'Jumlah', type: 'number', sortable: true },
+    { key: 'price', label: 'Harga Satuan', type: 'number', sortable: true },
+    { key: 'subtotal', label: 'Subtotal', type: 'number', sortable: true },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'order_id', label: 'ID Order', type: 'text', required: true },
+      { key: 'product_id', label: 'Produk', type: 'select', options: [], required: true },
+      { key: 'quantity', label: 'Jumlah', type: 'number', required: true },
+      { key: 'price', label: 'Harga', type: 'number', required: true }
+    ]
+  }
+};
 </script>
+
 
 

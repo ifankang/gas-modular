@@ -9,14 +9,14 @@ Dokumen ini adalah panduan kerja granular untuk **Fase 3**. Dokumen ini merinci 
 
 | Task ID | Nama Tugas | Strategi Eksekusi | Prasyarat (Blocked By) | Agen Pelaksana | File Target | Status |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: |
-| **T3.1** | **Definisi Skema Pindah Gudang & Mutasi** | `SEQUENTIAL` | Selesai Fase 2 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[PENDING]` |
-| **T3.2** | **Core Atomic Engine (`77_InventoryService`)** | `SEQUENTIAL` | **T3.1** | **Backend Core Subagent** | `77_InventoryService.gs` | `[PENDING]` |
-| **T3.3** | **Backend Pindah Gudang (Repo & Controller)** | `PARALLEL` | **T3.2** | **Backend Subagent** | `76_StockTransferRepository.gs`<br>`78_StockTransferController.gs` | `[PENDING]` |
-| **T3.4** | **Frontend UI Pindah Gudang (`Tab_StockTransfers`)** | `PARALLEL` | **T3.2** | **Frontend Subagent** | `Tab_StockTransfers.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[PENDING]` |
-| **T3.5** | **Frontend UI Riwayat Mutasi (`Tab_StockMutations`)** | `PARALLEL` | **T3.2** | **Frontend Subagent** | `Tab_StockMutations.html`<br>`Main.html` (nav) | `[PENDING]` |
-| **T3.6** | **API Adapter & RBAC Extension (Role SPG)** | `PARALLEL` | **T3.2** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[PENDING]` |
-| **T3.7** | **Seeder Pindah Gudang & Migration Sheets** | `SEQUENTIAL` | **T3.3**, **T3.6** | **Backend Subagent** | `99_Seed.gs` | `[PENDING]` |
-| **T3.8** | **Verifikasi Alur Approval, Deploy & Commit** | `SEQUENTIAL` | **T3.4**, **T3.5**, **T3.7** | **Main Orchestrator Agent** | Runtime Verification | `[PENDING]` |
+| **T3.1** | **Definisi Skema Pindah Gudang & Mutasi** | `SEQUENTIAL` | Selesai Fase 2 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[COMPLETED]` |
+| **T3.2** | **Core Atomic Engine (`77_InventoryService`)** | `SEQUENTIAL` | **T3.1** | **Backend Core Subagent** | `77_InventoryService.gs` | `[COMPLETED]` |
+| **T3.3** | **Backend Pindah Gudang (Repo & Controller)** | `PARALLEL` | **T3.2** | **Backend Subagent** | `76_StockTransferRepository.gs`<br>`78_StockTransferController.gs` | `[COMPLETED]` |
+| **T3.4** | **Frontend UI Pindah Gudang (`Tab_StockTransfers`)** | `PARALLEL` | **T3.2** | **Frontend Subagent** | `Tab_StockTransfers.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[COMPLETED]` |
+| **T3.5** | **Frontend UI Riwayat Mutasi (`Tab_StockMutations`)** | `PARALLEL` | **T3.2** | **Frontend Subagent** | `Tab_StockMutations.html`<br>`Main.html` (nav) | `[COMPLETED]` |
+| **T3.6** | **API Adapter & RBAC Extension (Role SPG)** | `PARALLEL` | **T3.2** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[COMPLETED]` |
+| **T3.7** | **Seeder Pindah Gudang & Migration Sheets** | `SEQUENTIAL` | **T3.3**, **T3.6** | **Backend Subagent** | `99_Seed.gs` | `[COMPLETED]` |
+| **T3.8** | **Verifikasi Alur Approval, Deploy & Commit** | `SEQUENTIAL` | **T3.4**, **T3.5**, **T3.7** | **Main Orchestrator Agent** | Runtime Verification | `[COMPLETED]` |
 
 ```mermaid
 flowchart TD

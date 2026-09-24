@@ -1,0 +1,489 @@
+<div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Transaksi Orders (PO & SO)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Pengadaan Barang (Purchase Order) &bull; Penjualan (Sales Order) terintegrasi stok</p>
+  </div>
+  <div class="flex items-center space-x-2">
+    <button id="btn-add-po" onclick="OrdersTab.openCreatePurchaseModal()" class="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <span>+ Buat PO (Beli)</span>
+    </button>
+    <button id="btn-add-so" onclick="OrdersTab.openCreateSalesModal()" class="inline-flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <span>+ Buat SO (Jual)</span>
+    </button>
+  </div>
+</div>
+
+<!-- Type Switcher Tabs -->
+<div class="flex border-b border-slate-200 mb-4 space-x-6 text-sm">
+  <button id="tab-btn-po" onclick="OrdersTab.switchType('PURCHASE')" class="pb-2.5 font-bold text-blue-600 border-b-2 border-blue-600 transition-all flex items-center space-x-2">
+    <span>Purchase Orders (Pengadaan)</span>
+  </button>
+  <button id="tab-btn-so" onclick="OrdersTab.switchType('SALES')" class="pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2">
+    <span>Sales Orders (Penjualan)</span>
+  </button>
+</div>
+
+<!-- Table Container -->
+<div id="orders-table-container"></div>
+
+<script>
+const OrdersTab = (function() {
+  const tableContainerId = 'orders-table-container';
+  let currentType = 'PURCHASE'; // 'PURCHASE' or 'SALES'
+  let isInitialized = false;
+  let warehouseCache = [];
+  let productCache = [];
+
+  function init() {
+    loadLookups();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData();
+    }
+  }
+
+  function switchType(type) {
+    currentType = type;
+    const poBtn = document.getElementById('tab-btn-po');
+    const soBtn = document.getElementById('tab-btn-so');
+
+    if (type === 'PURCHASE') {
+      poBtn.className = 'pb-2.5 font-bold text-blue-600 border-b-2 border-blue-600 transition-all flex items-center space-x-2';
+      soBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
+    } else {
+      soBtn.className = 'pb-2.5 font-bold text-emerald-600 border-b-2 border-emerald-600 transition-all flex items-center space-x-2';
+      poBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
+    }
+    loadData();
+  }
+
+  function loadLookups() {
+    Promise.all([
+      API.warehouses.list(),
+      API.products.list()
+    ]).then(([whRes, prdRes]) => {
+      warehouseCache = (whRes && whRes.data) || whRes || [];
+      productCache = (prdRes && prdRes.data) || prdRes || [];
+    }).catch(err => {
+      console.warn('Failed to preload lookups in Orders:', err);
+    });
+  }
+
+  function loadData() {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.orders.list(currentType)
+      .then(function(response) {
+        let orders = [];
+        if (response && response.data && Array.isArray(response.data)) {
+          orders = response.data;
+        } else if (Array.isArray(response)) {
+          orders = response;
+        }
+
+        const actions = [
+          {
+            name: 'view-detail',
+            label: 'Detail',
+            className: 'inline-flex items-center px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition-colors',
+            icon: '<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>'
+          }
+        ];
+
+        if (currentType === 'PURCHASE') {
+          actions.push({
+            name: 'step-action',
+            label: 'Aksi Status',
+            className: 'inline-flex items-center px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-md border border-blue-200 transition-colors',
+            icon: '<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+          });
+        }
+
+        Table.render({
+          containerId: tableContainerId,
+          columns: OrderSchema.columns,
+          data: orders,
+          searchable: true,
+          pagination: true,
+          pageSize: 10,
+          actions: actions,
+          onAction: handleAction
+        });
+      })
+      .catch(function(err) {
+        console.error('Error loading orders:', err);
+        Toast.show(err.message || 'Gagal memuat data pesanan.', 'error');
+      })
+      .finally(function() {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function handleAction(action, row) {
+    if (action === 'view-detail') {
+      openDetailModal(row);
+    } else if (action === 'step-action') {
+      handlePurchaseWorkflow(row);
+    }
+  }
+
+  function handlePurchaseWorkflow(order) {
+    const canApprove = typeof Auth !== 'undefined' && Auth.can('orders', 'approve');
+
+    if (order.status === 'draft') {
+      if (!canApprove) {
+        Toast.show('Hanya Admin yang dapat menyetujui Purchase Order (Approve PO).', 'warning');
+        return;
+      }
+      if (confirm(`Setujui Purchase Order ${order.order_no || order.id}?`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.orders.approvePurchase(order.id)
+          .then(res => {
+            Toast.show('Purchase Order disetujui (Approved). Menunggu pengiriman dari pemasok.', 'success');
+            loadData();
+          })
+          .catch(err => Toast.show(err.message || 'Gagal menyetujui PO.', 'error'))
+          .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      }
+    } else if (order.status === 'approved') {
+      if (confirm(`Tandai barang PO ${order.order_no || order.id} telah dikirim oleh pemasok (Shipped)?`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.orders.shipPurchase(order.id)
+          .then(res => {
+            Toast.show('Status PO diubah menjadi Shipped.', 'success');
+            loadData();
+          })
+          .catch(err => Toast.show(err.message || 'Gagal mengubah status PO.', 'error'))
+          .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      }
+    } else if (order.status === 'shipped') {
+      if (confirm(`Konfirmasi penerimaan barang di gudang tujuan untuk PO ${order.order_no || order.id}? Saldo stok fisik akan langsung bertambah.`)) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.orders.receivePurchase(order.id)
+          .then(res => {
+            Toast.show('Barang PO telah diterima! Saldo stok gudang telah bertambah.', 'success');
+            loadData();
+          })
+          .catch(err => Toast.show(err.message || 'Gagal menerima barang PO.', 'error'))
+          .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      }
+    } else if (order.status === 'received') {
+      Toast.show('Purchase Order ini sudah selesai dan stok telah masuk.', 'info');
+    }
+  }
+
+  function openDetailModal(order) {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.orders.get(order.id)
+      .then(res => {
+        const data = res.data || res;
+        const ord = data.order || order;
+        const items = data.items || [];
+
+        let itemsHtml = '';
+        if (items.length === 0) {
+          itemsHtml = '<tr><td colspan="5" class="py-3 text-center text-slate-400">Tidak ada item tercatat.</td></tr>';
+        } else {
+          items.forEach((it, idx) => {
+            const prd = productCache.find(p => p.id === it.product_id) || {};
+            itemsHtml += `
+              <tr class="border-b border-slate-100">
+                <td class="py-2.5 px-3 text-slate-600 font-mono text-xs">${idx + 1}</td>
+                <td class="py-2.5 px-3">
+                  <span class="font-semibold text-slate-800 text-sm block">${prd.name || it.product_id}</span>
+                  <span class="text-[11px] text-slate-400 font-mono">${prd.code || it.product_id}</span>
+                </td>
+                <td class="py-2.5 px-3 text-right font-mono text-sm">${Number(it.quantity).toLocaleString('id-ID')} ${prd.unit || 'pcs'}</td>
+                <td class="py-2.5 px-3 text-right font-mono text-xs">Rp ${Number(it.price).toLocaleString('id-ID')}</td>
+                <td class="py-2.5 px-3 text-right font-bold font-mono text-sm text-slate-900">Rp ${Number(it.subtotal).toLocaleString('id-ID')}</td>
+              </tr>
+            `;
+          });
+        }
+
+        const modalBody = Modal.create({
+          title: `Detail Order: ${ord.order_no || ord.id} (${ord.type})`,
+          onClose: () => {}
+        });
+
+        modalBody.innerHTML = `
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-lg text-xs border border-slate-100">
+              <div>
+                <span class="text-slate-400 block">${ord.type === 'PURCHASE' ? 'Pemasok (Supplier):' : 'Pelanggan (Customer):'}</span>
+                <span class="font-bold text-slate-800 text-sm">${ord.contact_name}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block">${ord.type === 'PURCHASE' ? 'Gudang Tujuan Masuk:' : 'Gudang Pengirim:'}</span>
+                <span class="font-bold text-slate-800">${ord.destination_warehouse_id}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block">Tanggal Transaksi:</span>
+                <span class="font-semibold text-slate-700">${ord.date || '-'}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block">Status:</span>
+                <span class="gas-badge ${ord.status === 'completed' || ord.status === 'received' ? 'gas-badge-success' : 'gas-badge-primary'}">${ord.status}</span>
+              </div>
+              ${ord.approved_by ? `<div class="col-span-2 text-[11px] text-slate-500">Disetujui: <b>${ord.approved_by}</b> (${ord.approved_at || '-'})</div>` : ''}
+              ${ord.received_by ? `<div class="col-span-2 text-[11px] text-slate-500">Diterima Gudang: <b>${ord.received_by}</b> (${ord.received_at || '-'})</div>` : ''}
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th class="py-2.5 px-3 w-8">#</th>
+                    <th class="py-2.5 px-3">Produk</th>
+                    <th class="py-2.5 px-3 text-right">Kuantitas</th>
+                    <th class="py-2.5 px-3 text-right">Harga</th>
+                    <th class="py-2.5 px-3 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+                <tfoot class="bg-slate-50 border-t border-slate-200 font-bold">
+                  <tr>
+                    <td colspan="4" class="py-2.5 px-3 text-right text-slate-700">Total Transaksi:</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-base text-blue-700">Rp ${Number(ord.total_amount || 0).toLocaleString('id-ID')}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors">
+                Tutup
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .catch(err => Toast.show(err.message || 'Gagal memuat detail order.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  function openCreatePurchaseModal() {
+    openOrderFormModal('PURCHASE', 'Buat Purchase Order (Pengadaan Barang)', 'Gudang Tujuan Penerimaan');
+  }
+
+  function openCreateSalesModal() {
+    openOrderFormModal('SALES', 'Buat Sales Order (Penjualan Barang)', 'Gudang Sumber Pengiriman');
+  }
+
+  function openOrderFormModal(type, title, whLabel) {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    Promise.all([
+      API.warehouses.list(),
+      API.products.list()
+    ]).then(([whRes, prdRes]) => {
+      const warehouses = (whRes && whRes.data) || whRes || [];
+      const products = (prdRes && prdRes.data) || prdRes || [];
+
+      let whOptions = warehouses.map(w => `<option value="${w.id}">${w.name} (${w.code})</option>`).join('');
+      let prdOptions = products.map(p => `<option value="${p.id}" data-price="${type === 'PURCHASE' ? (p.cost_price || p.price) : p.price}">${p.name} (Stok: ${p.stock || 0} ${p.unit || 'pcs'})</option>`).join('');
+
+      const modalBody = Modal.create({
+        title: title,
+        onClose: () => {}
+      });
+
+      modalBody.innerHTML = `
+        <form id="form-create-order" onsubmit="event.preventDefault(); OrdersTab.submitOrder('${type}');" class="space-y-4 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">${type === 'PURCHASE' ? 'Nama Pemasok (Supplier) *' : 'Nama Pelanggan (Customer) *'}</label>
+              <input type="text" id="order-contact" required placeholder="${type === 'PURCHASE' ? 'PT Supplier Abadi' : 'Pelanggan Toko'}" class="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">${whLabel} *</label>
+              <select id="order-wh" required class="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="">-- Pilih Lokasi Gudang --</option>
+                ${whOptions}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">No. Referensi / Surat Jalan (Opsional)</label>
+              <input type="text" id="order-no" placeholder="Otomatis jika kosong" class="w-full p-2 border border-slate-200 rounded-lg text-xs" />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Tanggal Transaksi</label>
+              <input type="date" id="order-date" value="${new Date().toISOString().split('T')[0]}" class="w-full p-2 border border-slate-200 rounded-lg text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+            <textarea id="order-notes" rows="2" placeholder="Catatan transaksi..." class="w-full p-2 border border-slate-200 rounded-lg text-xs"></textarea>
+          </div>
+
+          <div class="border-t border-slate-100 pt-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-slate-800">Daftar Barang</span>
+              <button type="button" onclick="OrdersTab.addItemRow()" class="text-blue-600 hover:text-blue-700 font-semibold text-xs">+ Tambah Item</button>
+            </div>
+            <div id="order-items-container" class="space-y-2">
+              <!-- Injected item rows -->
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div class="text-xs text-slate-600">
+              Total: <span id="order-total-preview" class="font-bold font-mono text-base text-blue-700">Rp 0</span>
+            </div>
+            <div class="space-x-2">
+              <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm">
+                ${type === 'PURCHASE' ? 'Simpan Draft PO' : 'Selesaikan Penjualan (SO)'}
+              </button>
+            </div>
+          </div>
+        </form>
+      `;
+
+      window._orderPrdOptions = prdOptions;
+      addItemRow();
+    }).finally(() => {
+      if (typeof Loading !== 'undefined') Loading.hide();
+    });
+  }
+
+  function addItemRow() {
+    const container = document.getElementById('order-items-container');
+    if (!container) return;
+
+    const rowId = 'ord-item-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const div = document.createElement('div');
+    div.id = rowId;
+    div.className = 'flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100';
+    div.innerHTML = `
+      <div class="flex-1">
+        <select onchange="OrdersTab.onProductSelect(this, '${rowId}')" class="ord-item-product w-full p-1.5 border border-slate-200 rounded text-xs bg-white" required>
+          <option value="">-- Pilih Produk --</option>
+          ${window._orderPrdOptions || ''}
+        </select>
+      </div>
+      <div class="w-20">
+        <input type="number" min="1" placeholder="Qty" oninput="OrdersTab.recalcTotal()" class="ord-item-qty w-full p-1.5 border border-slate-200 rounded text-xs bg-white text-right" required />
+      </div>
+      <div class="w-28">
+        <input type="number" min="0" placeholder="Harga" oninput="OrdersTab.recalcTotal()" class="ord-item-price w-full p-1.5 border border-slate-200 rounded text-xs bg-white text-right" required />
+      </div>
+      <button type="button" onclick="document.getElementById('${rowId}').remove(); OrdersTab.recalcTotal();" class="text-red-500 hover:text-red-700 p-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+      </button>
+    `;
+    container.appendChild(div);
+  }
+
+  function onProductSelect(selectEl, rowId) {
+    const selectedOpt = selectEl.options[selectEl.selectedIndex];
+    const defaultPrice = selectedOpt.getAttribute('data-price') || 0;
+    const rowEl = document.getElementById(rowId);
+    if (rowEl) {
+      const priceInput = rowEl.querySelector('.ord-item-price');
+      if (priceInput && (!priceInput.value || Number(priceInput.value) === 0)) {
+        priceInput.value = defaultPrice;
+      }
+    }
+    recalcTotal();
+  }
+
+  function recalcTotal() {
+    const qtys = document.querySelectorAll('.ord-item-qty');
+    const prices = document.querySelectorAll('.ord-item-price');
+    let total = 0;
+    for (let i = 0; i < qtys.length; i++) {
+      const q = Number(qtys[i].value) || 0;
+      const p = Number(prices[i].value) || 0;
+      total += (q * p);
+    }
+    const previewEl = document.getElementById('order-total-preview');
+    if (previewEl) {
+      previewEl.innerText = 'Rp ' + total.toLocaleString('id-ID');
+    }
+  }
+
+  function submitOrder(type) {
+    const contact = document.getElementById('order-contact')?.value;
+    const wh = document.getElementById('order-wh')?.value;
+    const orderNo = document.getElementById('order-no')?.value;
+    const orderDate = document.getElementById('order-date')?.value;
+    const notes = document.getElementById('order-notes')?.value;
+
+    if (!contact || !wh) {
+      Toast.show('Nama kontak dan gudang wajib diisi.', 'warning');
+      return;
+    }
+
+    const prdEls = document.querySelectorAll('.ord-item-product');
+    const qtyEls = document.querySelectorAll('.ord-item-qty');
+    const priceEls = document.querySelectorAll('.ord-item-price');
+    const items = [];
+
+    for (let i = 0; i < prdEls.length; i++) {
+      const pId = prdEls[i].value;
+      const q = Number(qtyEls[i].value) || 0;
+      const p = Number(priceEls[i].value) || 0;
+      if (pId && q > 0) {
+        items.push({ product_id: pId, quantity: q, price: p });
+      }
+    }
+
+    if (items.length === 0) {
+      Toast.show('Minimal masukkan 1 barang dengan jumlah valid.', 'warning');
+      return;
+    }
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const payload = {
+      orderData: {
+        order_no: orderNo,
+        date: orderDate,
+        destination_warehouse_id: wh,
+        contact_name: contact,
+        notes: notes
+      },
+      items: items
+    };
+
+    const apiCall = (type === 'PURCHASE') ? API.orders.createPurchase(payload) : API.orders.createSales(payload);
+
+    apiCall
+      .then(res => {
+        Toast.show(type === 'PURCHASE' ? 'Draft Purchase Order berhasil dibuat.' : 'Transaksi penjualan berhasil diselesaikan!', 'success');
+        Modal.hide();
+        loadData();
+      })
+      .catch(err => Toast.show(err.message || 'Gagal memproses pesanan.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  return {
+    init: init,
+    switchType: switchType,
+    loadData: loadData,
+    openCreatePurchaseModal: openCreatePurchaseModal,
+    openCreateSalesModal: openCreateSalesModal,
+    addItemRow: addItemRow,
+    onProductSelect: onProductSelect,
+    recalcTotal: recalcTotal,
+    submitOrder: submitOrder
+  };
+})();
+
+window.initOrdersTab = function() {
+  OrdersTab.init();
+};
+</script>

@@ -25,7 +25,7 @@ const Config = {
       permissions: {
         users: ['read', 'create', 'edit', 'delete'],
         products: ['read', 'create', 'edit', 'delete'],
-        orders: ['read', 'create', 'edit', 'delete'],
+        orders: ['read', 'create', 'edit', 'delete', 'approve'],
         roles: ['read', 'create', 'edit', 'delete'],
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit', 'delete'],
@@ -38,13 +38,14 @@ const Config = {
       permissions: {
         users: ['read'],
         products: ['read', 'create', 'edit', 'delete'],
-        orders: ['read', 'create', 'edit', 'delete'],
+        orders: ['read', 'create', 'edit', 'delete', 'approve'],
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit'],
         stocks: ['read', 'create', 'edit'],
         transfers: ['read', 'create', 'edit', 'approve', 'receive']
       }
     },
+
     staff: {
       name: 'Staff',
       permissions: {

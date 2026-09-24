@@ -9,13 +9,13 @@ Dokumen ini adalah panduan kerja granular untuk **Fase 4**. Dokumen ini merinci 
 
 | Task ID | Nama Tugas | Strategi Eksekusi | Prasyarat (Blocked By) | Agen Pelaksana | File Target | Status |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: |
-| **T4.1** | **Definisi Skema Orders & OrderItems** | `SEQUENTIAL` | Selesai Fase 3 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[PENDING]` |
-| **T4.2** | **Backend Purchase Order Workflow** | `PARALLEL` | **T4.1** | **Backend Subagent** | `80_OrderRepository.gs`<br>`81_OrderService.gs`<br>`82_OrderController.gs` | `[PENDING]` |
-| **T4.3** | **Backend Sales Order Workflow** | `PARALLEL` | **T4.1** | **Backend Subagent** | `81_OrderService.gs`<br>`82_OrderController.gs` | `[PENDING]` |
-| **T4.4** | **Frontend UI Tab Orders (`Tab_Orders`)** | `PARALLEL` | **T4.1** | **Frontend Subagent** | `Tab_Orders.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[PENDING]` |
-| **T4.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T4.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[PENDING]` |
-| **T4.6** | **Seeder Orders & OrderItems** | `SEQUENTIAL` | **T4.2**, **T4.3**, **T4.5** | **Backend Subagent** | `99_Seed.gs` | `[PENDING]` |
-| **T4.7** | **Verifikasi Transaksi, Deploy & Commit** | `SEQUENTIAL` | **T4.4**, **T4.6** | **Main Orchestrator Agent** | Runtime Verification | `[PENDING]` |
+| **T4.1** | **Definisi Skema Orders & OrderItems** | `SEQUENTIAL` | Selesai Fase 3 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | 🟢 `[COMPLETED]` |
+| **T4.2** | **Backend Purchase Order Workflow** | `PARALLEL` | **T4.1** | **Backend Subagent** | `80_OrderRepository.gs`<br>`81_OrderService.gs`<br>`82_OrderController.gs` | 🟢 `[COMPLETED]` |
+| **T4.3** | **Backend Sales Order Workflow** | `PARALLEL` | **T4.1** | **Backend Subagent** | `81_OrderService.gs`<br>`82_OrderController.gs` | 🟢 `[COMPLETED]` |
+| **T4.4** | **Frontend UI Tab Orders (`Tab_Orders`)** | `PARALLEL` | **T4.1** | **Frontend Subagent** | `Tab_Orders.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | 🟢 `[COMPLETED]` |
+| **T4.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T4.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | 🟢 `[COMPLETED]` |
+| **T4.6** | **Seeder Orders & OrderItems** | `SEQUENTIAL` | **T4.2**, **T4.3**, **T4.5** | **Backend Subagent** | `99_Seed.gs` | 🟢 `[COMPLETED]` |
+| **T4.7** | **Verifikasi Transaksi, Deploy & Commit** | `SEQUENTIAL` | **T4.4**, **T4.6** | **Main Orchestrator Agent** | Runtime Verification | 🟢 `[COMPLETED]` |
 
 ```mermaid
 flowchart TD

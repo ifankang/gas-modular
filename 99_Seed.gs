@@ -208,12 +208,16 @@ function seedDatabase() {
   // 7. Seed Transfers & Mutations (plus SPG sample user)
   seedTransfersAndMutations(ss, now);
 
+  // 8. Seed Orders & OrderItems (PO & SO sample transactions)
+  seedOrders(ss, now);
+
   Logger.log('Database seeded and verified successfully.');
   return {
     success: true,
-    message: 'Sheet "Users", "Products", "Roles", "Categories", "Warehouses", "Stocks", "StockTransfers", "TransferItems", dan "StockMutations" berhasil diverifikasi dan disiapkan!'
+    message: 'Sheet "Users", "Products", "Roles", "Categories", "Warehouses", "Stocks", "StockTransfers", "TransferItems", "StockMutations", "Orders", dan "OrderItems" berhasil diverifikasi dan disiapkan!'
   };
 }
+
 
 
 
@@ -456,6 +460,115 @@ function seedTransfersAndMutations(ss, now) {
 
   Logger.log('StockTransfers, TransferItems, and StockMutations sheets verified.');
 }
+
+/**
+ * seedOrders()
+ * Inisialisasi sheet Orders dan OrderItems dengan header kolom,
+ * serta menyiapkan data sampel 1 Purchase Order (PO) dan 1 Sales Order (SO).
+ */
+function seedOrders(ss, now) {
+  if (!ss) ss = SpreadsheetApp.openById(Config.SPREADSHEET_ID);
+  if (!now) now = new Date().toISOString();
+
+  // 1. Inisialisasi Sheet Orders
+  let orderSheet = ss.getSheetByName('Orders');
+  if (!orderSheet) {
+    orderSheet = ss.insertSheet('Orders');
+  }
+  const orderHeaders = [
+    'id', 'order_no', 'type', 'date', 'destination_warehouse_id',
+    'contact_name', 'total_amount', 'status', 'approved_by',
+    'approved_at', 'received_by', 'received_at', 'notes', 'created_at', 'updated_at'
+  ];
+  if (orderSheet.getLastRow() === 0) {
+    orderSheet.appendRow(orderHeaders);
+  }
+
+  // 2. Inisialisasi Sheet OrderItems
+  let itemSheet = ss.getSheetByName('OrderItems');
+  if (!itemSheet) {
+    itemSheet = ss.insertSheet('OrderItems');
+  }
+  const itemHeaders = ['id', 'order_id', 'product_id', 'quantity', 'price', 'subtotal', 'created_at', 'updated_at'];
+  if (itemSheet.getLastRow() === 0) {
+    itemSheet.appendRow(itemHeaders);
+  }
+
+  // 3. Tambahkan sampel transaksi jika Orders masih kosong
+  Database.clearCache('Orders');
+  const existingOrders = Database.findAll('Orders');
+  if (existingOrders.length === 0) {
+    const products = Database.findAll('Products');
+    const firstPrd = products[0] || { id: 'PRD-000001', price: 150000 };
+
+    // Sampel PO (Pengadaan ke Gudang Pusat)
+    const samplePoId = 'ORD-000001';
+    Database.create('Orders', {
+      id: samplePoId,
+      order_no: 'PO-2026-001',
+      type: 'PURCHASE',
+      date: now.split('T')[0],
+      destination_warehouse_id: 'WH-000001',
+      contact_name: 'PT Mitra Pemasok Mandiri',
+      total_amount: Number(firstPrd.price || 150000) * 50,
+      status: 'received',
+      approved_by: 'Super Admin',
+      approved_at: now,
+      received_by: 'Staff Gudang',
+      received_at: now,
+      notes: 'Pengadaan stok batch perdana',
+      created_at: now,
+      updated_at: now
+    });
+
+    Database.create('OrderItems', {
+      id: 'ITM-000001',
+      order_id: samplePoId,
+      product_id: firstPrd.id,
+      quantity: 50,
+      price: Number(firstPrd.price || 150000),
+      subtotal: Number(firstPrd.price || 150000) * 50,
+      created_at: now,
+      updated_at: now
+    });
+
+    // Sampel SO (Penjualan dari Toko Mall)
+    const sampleSoId = 'ORD-000002';
+    Database.create('Orders', {
+      id: sampleSoId,
+      order_no: 'SO-2026-001',
+      type: 'SALES',
+      date: now.split('T')[0],
+      destination_warehouse_id: 'WH-000002',
+      contact_name: 'Bpk. Hendra Kurniawan',
+      total_amount: Number(firstPrd.price || 150000) * 2,
+      status: 'completed',
+      approved_by: 'SPG Toko Mall',
+      approved_at: now,
+      received_by: '',
+      received_at: '',
+      notes: 'Penjualan retail langsung',
+      created_at: now,
+      updated_at: now
+    });
+
+    Database.create('OrderItems', {
+      id: 'ITM-000002',
+      order_id: sampleSoId,
+      product_id: firstPrd.id,
+      quantity: 2,
+      price: Number(firstPrd.price || 150000),
+      subtotal: Number(firstPrd.price || 150000) * 2,
+      created_at: now,
+      updated_at: now
+    });
+
+    Logger.log('Seeded initial sample PO and SO transactions.');
+  }
+
+  Logger.log('Orders and OrderItems sheets verified.');
+}
+
 
 
 

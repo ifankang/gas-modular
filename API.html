@@ -66,6 +66,17 @@
       delete: (id) => API.call('productsDelete', id)
     },
 
+    orders: {
+      list: (type) => API.call('ordersList', type),
+      get: (id) => API.call('ordersGet', id),
+      createPurchase: (payload) => API.call('ordersCreatePurchase', payload),
+      approvePurchase: (id) => API.call('ordersApprovePurchase', id),
+      shipPurchase: (id) => API.call('ordersShipPurchase', id),
+      receivePurchase: (id) => API.call('ordersReceivePurchase', id),
+      createSales: (payload) => API.call('ordersCreateSales', payload)
+    },
+
+
     roles: {
       list: () => API.call('rolesList'),
       get: (id) => API.call('rolesGet', id),
