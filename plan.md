@@ -24,8 +24,8 @@ flowchart TD
 | Fase | Nama Modul | Rencana Granular | Mode Orkestrasi | Prasyarat (Blocked By) | Status |
 | :---: | :--- | :---: | :---: | :---: | :---: |
 | **Fase 1** | **Kategori Produk & Integrasi Form** | [`plans/01_categories.md`](plans/01_categories.md) | **Sub-Tasks Paralel** | Tidak Ada | 🟢 `COMPLETED` |
-| **Fase 2** | **Multi-Gudang & Saldo Stok** | [`plans/02_warehouses_and_stocks.md`](plans/02_warehouses_and_stocks.md) | **Sub-Tasks Paralel** | Selesai Fase 1 | 🟢 `READY TO EXECUTE` |
-| **Fase 3** | **Pindah Gudang & Engine Mutasi Stok** | [`plans/03_stock_transfers_and_mutations.md`](plans/03_stock_transfers_and_mutations.md) | **Sub-Tasks Paralel** | Selesai Fase 2 | 🟡 `PENDING` |
+| **Fase 2** | **Multi-Gudang & Saldo Stok** | [`plans/02_warehouses_and_stocks.md`](plans/02_warehouses_and_stocks.md) | **Sub-Tasks Paralel** | Selesai Fase 1 | 🟢 `COMPLETED` |
+| **Fase 3** | **Pindah Gudang & Engine Mutasi Stok** | [`plans/03_stock_transfers_and_mutations.md`](plans/03_stock_transfers_and_mutations.md) | **Sub-Tasks Paralel** | Selesai Fase 2 | 🟢 `READY TO EXECUTE` |
 | **Fase 4** | **Purchase Order (PO) & Sales Order (SO)** | [`plans/04_orders_po_so.md`](plans/04_orders_po_so.md) | **Sub-Tasks Paralel** | Selesai Fase 3 | 🟡 `PENDING` |
 | **Fase 5** | **Sistem Laporan Bisnis & Ekspor** | [`plans/05_reporting_engine.md`](plans/05_reporting_engine.md) | **Sub-Tasks Paralel** | Selesai Fase 4 | 🟡 `PENDING` |
 
@@ -82,12 +82,13 @@ Setiap file di dalam folder `plans/` memiliki matriks dependensi tugas mikro yan
 
 ---
 
-## 🎯 Target Eksekusi Saat Ini: **FASE 2 (Multi-Gudang & Saldo Stok)**
-Fase 1 telah selesai sepenuhnya (commit `e54cd9e`, deploy `@31`).
-Fase 2 siap dieksekusi dengan urutan tugas:
-1. `T2.1`: Definisi Skema Gudang (`WarehouseSchema`) & Saldo Stok (`StockSchema`).
-2. `T2.2` (Backend Gudang), `T2.3` (Backend StockService), `T2.4` (Frontend Tab_Warehouses), dan `T2.5` (API Adapter & RBAC) dieksekusi secara **paralel**.
-3. `T2.6`: Integrasi popup rincian stok per lokasi di `Tab_Products.html`.
-4. `T2.7`: Seeder gudang & inisialisasi sheet `Stocks` di `99_Seed.gs`.
-5. `T2.8`: Validasi sintaks, `clasp push -f`, deploy versi baru, dan commit Git.
+## 🎯 Target Eksekusi Saat Ini: **FASE 3 (Pindah Gudang & Engine Mutasi Stok)**
+Fase 1 & Fase 2 telah selesai sepenuhnya (commit `489de38`, deploy `@32`).
+Fase 3 siap dieksekusi dengan urutan tugas:
+1. `T3.1`: Definisi Skema `StockTransfers`, `TransferItems`, `StockMutations`.
+2. `T3.2`: Core Engine `77_InventoryService.gs` (Atomic LockService untuk mutasi stok masuk/keluar/pindah).
+3. `T3.3` s.d. `T3.6` (**Paralel**): Backend Transaksi Transfer, UI `Tab_StockTransfers.html` (Alur 2-step: Approve Kirim by Admin & Terima by SPG), UI `Tab_StockMutations.html`, dan penambahan role `spg`.
+4. `T3.7`: Seeder transfer & inisialisasi sheet mutasi di `99_Seed.gs`.
+5. `T3.8`: Validasi sintaks, `clasp push -f`, deploy versi Web App baru, dan commit Git.
+
 
