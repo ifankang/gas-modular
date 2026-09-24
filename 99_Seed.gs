@@ -202,12 +202,16 @@ function seedDatabase() {
   // 5. Migrate Products Sheet (add new columns if missing)
   migrateProductsSheet(ss);
 
+  // 6. Seed Warehouses & Stocks
+  seedWarehousesAndStocks(ss, now);
+
   Logger.log('Database seeded and verified successfully.');
   return {
     success: true,
-    message: 'Sheet "Users", "Products", "Roles", dan "Categories" berhasil diverifikasi dan disiapkan!'
+    message: 'Sheet "Users", "Products", "Roles", "Categories", "Warehouses", dan "Stocks" berhasil diverifikasi dan disiapkan!'
   };
 }
+
 
 /**
  * seedCategories()
@@ -293,4 +297,98 @@ function migrateProductsSheet(ss) {
     Logger.log('Products sheet migration: no new columns needed.');
   }
 }
+
+/**
+ * seedWarehousesAndStocks()
+ * Inisialisasi sheet Warehouses dan sheet Stocks.
+ * Menyiapkan data gudang utama (GDG-JKT) dan toko cabang (TKO-MALL)
+ * serta menginisialisasi alokasi saldo stok fisik per gudang.
+ */
+function seedWarehousesAndStocks(ss, now) {
+  if (!ss) ss = SpreadsheetApp.openById(Config.SPREADSHEET_ID);
+  if (!now) now = new Date().toISOString();
+
+  // 1. Inisialisasi Sheet Warehouses
+  let whSheet = ss.getSheetByName('Warehouses');
+  if (!whSheet) {
+    whSheet = ss.insertSheet('Warehouses');
+  }
+
+  const whHeaders = ['id', 'code', 'name', 'address', 'status', 'created_at', 'updated_at'];
+  const sampleWarehouses = [
+    ['WH-000001', 'GDG-JKT', 'Gudang Pusat Jakarta', 'Jl. Daan Mogot No. 10, Jakarta Barat', 'active', now, now],
+    ['WH-000002', 'TKO-MALL', 'Toko Mall Kelapa Gading', 'Mall Kelapa Gading Lt. 2 No. 45, Jakarta Utara', 'active', now, now]
+  ];
+
+  if (whSheet.getLastRow() === 0) {
+    whSheet.appendRow(whHeaders);
+    sampleWarehouses.forEach(function(row) { whSheet.appendRow(row); });
+  } else {
+    Database.clearCache('Warehouses');
+    const existingWh = Database.findAll('Warehouses');
+    sampleWarehouses.forEach(function(row) {
+      const exists = existingWh.find(function(w) { return String(w.id) === String(row[0]); });
+      if (!exists) {
+        Database.create('Warehouses', {
+          id:         row[0],
+          code:       row[1],
+          name:       row[2],
+          address:    row[3],
+          status:     row[4],
+          created_at: now,
+          updated_at: now
+        });
+      }
+    });
+  }
+
+  // 2. Inisialisasi Sheet Stocks
+  let stockSheet = ss.getSheetByName('Stocks');
+  if (!stockSheet) {
+    stockSheet = ss.insertSheet('Stocks');
+  }
+
+  const stockHeaders = ['id', 'warehouse_id', 'product_id', 'quantity', 'created_at', 'updated_at'];
+  if (stockSheet.getLastRow() === 0) {
+    stockSheet.appendRow(stockHeaders);
+  }
+
+  // Inisialisasi alokasi stok untuk produk yang ada jika sheet Stocks masih kosong
+  Database.clearCache('Stocks');
+  const existingStocks = Database.findAll('Stocks');
+  if (existingStocks.length === 0) {
+    const products = Database.findAll('Products');
+    let seq = 1;
+    products.forEach(function(prd) {
+      const totalQty = Number(prd.stock) || 0;
+      // Bagi stok: 70% di Gudang Pusat, 30% di Toko Mall
+      const qtyPusat = Math.floor(totalQty * 0.7);
+      const qtyMall = totalQty - qtyPusat;
+
+      const stkId1 = Utils.generateId('STK', seq++);
+      Database.create('Stocks', {
+        id: stkId1,
+        warehouse_id: 'WH-000001',
+        product_id: prd.id,
+        quantity: qtyPusat,
+        created_at: now,
+        updated_at: now
+      });
+
+      const stkId2 = Utils.generateId('STK', seq++);
+      Database.create('Stocks', {
+        id: stkId2,
+        warehouse_id: 'WH-000002',
+        product_id: prd.id,
+        quantity: qtyMall,
+        created_at: now,
+        updated_at: now
+      });
+    });
+    Logger.log('Initialized initial stock balance per warehouse for ' + products.length + ' products.');
+  }
+
+  Logger.log('Warehouses and Stocks sheets seeded/verified.');
+}
+
 

@@ -23,8 +23,8 @@ flowchart TD
 
 | Fase | Nama Modul | Rencana Granular | Mode Orkestrasi | Prasyarat (Blocked By) | Status |
 | :---: | :--- | :---: | :---: | :---: | :---: |
-| **Fase 1** | **Kategori Produk & Integrasi Form** | [`plans/01_categories.md`](plans/01_categories.md) | **Sub-Tasks Paralel** | Tidak Ada | 🟢 `READY TO EXECUTE` |
-| **Fase 2** | **Multi-Gudang & Saldo Stok** | [`plans/02_warehouses_and_stocks.md`](plans/02_warehouses_and_stocks.md) | **Sub-Tasks Paralel** | Selesai Fase 1 | 🟡 `PENDING` |
+| **Fase 1** | **Kategori Produk & Integrasi Form** | [`plans/01_categories.md`](plans/01_categories.md) | **Sub-Tasks Paralel** | Tidak Ada | 🟢 `COMPLETED` |
+| **Fase 2** | **Multi-Gudang & Saldo Stok** | [`plans/02_warehouses_and_stocks.md`](plans/02_warehouses_and_stocks.md) | **Sub-Tasks Paralel** | Selesai Fase 1 | 🟢 `READY TO EXECUTE` |
 | **Fase 3** | **Pindah Gudang & Engine Mutasi Stok** | [`plans/03_stock_transfers_and_mutations.md`](plans/03_stock_transfers_and_mutations.md) | **Sub-Tasks Paralel** | Selesai Fase 2 | 🟡 `PENDING` |
 | **Fase 4** | **Purchase Order (PO) & Sales Order (SO)** | [`plans/04_orders_po_so.md`](plans/04_orders_po_so.md) | **Sub-Tasks Paralel** | Selesai Fase 3 | 🟡 `PENDING` |
 | **Fase 5** | **Sistem Laporan Bisnis & Ekspor** | [`plans/05_reporting_engine.md`](plans/05_reporting_engine.md) | **Sub-Tasks Paralel** | Selesai Fase 4 | 🟡 `PENDING` |
@@ -82,9 +82,12 @@ Setiap file di dalam folder `plans/` memiliki matriks dependensi tugas mikro yan
 
 ---
 
-## 🎯 Target Eksekusi Saat Ini: **FASE 1 (Kategori Produk)**
-Fase 1 siap dimulai dengan sub-tasks:
-1. `T1.1`: Definisi Skema Kategori & Update Produk
-2. `T1.2` (Backend) & `T1.3` (Frontend) & `T1.4` (API Adapter) dieksekusi secara **paralel**
-3. `T1.5` & `T1.6`: Integrasi dynamic select ke Form Produk dan Seeder
-4. `T1.7`: Verifikasi runtime, push ke Clasp, deploy versi baru, dan commit ke GitHub.
+## 🎯 Target Eksekusi Saat Ini: **FASE 2 (Multi-Gudang & Saldo Stok)**
+Fase 1 telah selesai sepenuhnya (commit `e54cd9e`, deploy `@31`).
+Fase 2 siap dieksekusi dengan urutan tugas:
+1. `T2.1`: Definisi Skema Gudang (`WarehouseSchema`) & Saldo Stok (`StockSchema`).
+2. `T2.2` (Backend Gudang), `T2.3` (Backend StockService), `T2.4` (Frontend Tab_Warehouses), dan `T2.5` (API Adapter & RBAC) dieksekusi secara **paralel**.
+3. `T2.6`: Integrasi popup rincian stok per lokasi di `Tab_Products.html`.
+4. `T2.7`: Seeder gudang & inisialisasi sheet `Stocks` di `99_Seed.gs`.
+5. `T2.8`: Validasi sintaks, `clasp push -f`, deploy versi baru, dan commit Git.
+

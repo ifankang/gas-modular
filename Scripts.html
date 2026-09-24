@@ -11,27 +11,35 @@
       orders: ['create', 'read', 'edit', 'delete'],
       categories: ['create', 'read', 'edit', 'delete'],
       roles: ['create', 'read', 'edit', 'delete'],
-      categories: ['create', 'read', 'edit', 'delete']
+      warehouses: ['create', 'read', 'edit', 'delete'],
+      stocks: ['create', 'read', 'edit', 'delete']
     },
     manager: {
       dashboard: ['read'],
       users: ['read'],
       products: ['create', 'read', 'edit', 'delete'],
       orders: ['create', 'read', 'edit', 'delete'],
-      categories: ['create', 'read', 'edit', 'delete']
+      categories: ['create', 'read', 'edit', 'delete'],
+      warehouses: ['create', 'read', 'edit'],
+      stocks: ['create', 'read', 'edit']
     },
     staff: {
       dashboard: ['read'],
       products: ['create', 'read', 'edit'],
       orders: ['read', 'create', 'edit'],
-      categories: ['read']
+      categories: ['read'],
+      warehouses: ['read'],
+      stocks: ['read']
     },
     viewer: {
       dashboard: ['read'],
       products: ['read'],
-      categories: ['read']
+      categories: ['read'],
+      warehouses: ['read'],
+      stocks: ['read']
     }
   };
+
 
   /**
    * Global Auth Adapter

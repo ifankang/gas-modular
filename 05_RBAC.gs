@@ -132,6 +132,13 @@ const RBAC = {
         const categoryActions = parseActions(row.categories);
         if (categoryActions.length > 0) permissions.categories = categoryActions;
 
+        const warehouseActions = parseActions(row.warehouses);
+        if (warehouseActions.length > 0) permissions.warehouses = warehouseActions;
+
+        const stockActions = parseActions(row.stocks);
+        if (stockActions.length > 0) permissions.stocks = stockActions;
+
+
         if (row.roles !== undefined) {
           const roleActions = parseActions(row.roles);
           if (roleActions.length > 0) permissions.roles = roleActions;
@@ -171,7 +178,9 @@ const RBAC = {
         products: ['*'],
         orders: ['*'],
         roles: ['*'],
-        categories: ['*']
+        categories: ['*'],
+        warehouses: ['*'],
+        stocks: ['*']
       };
     }
 

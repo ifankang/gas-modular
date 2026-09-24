@@ -138,4 +138,50 @@ const RoleSchema = {
     ]
   }
 };
+
+const WarehouseSchema = {
+  resource: 'warehouses',
+  sheet: 'Warehouses',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'code', label: 'Kode Gudang', type: 'badge', searchable: true, sortable: true },
+    { key: 'name', label: 'Nama Gudang', type: 'text', searchable: true, sortable: true },
+    { key: 'address', label: 'Alamat / Lokasi', type: 'text' },
+    { key: 'status', label: 'Status', type: 'badge' },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'code', label: 'Kode Gudang (e.g. GDG-JKT, TKO-MALL)', type: 'text', required: true },
+      { key: 'name', label: 'Nama Gudang', type: 'text', required: true },
+      { key: 'address', label: 'Alamat / Lokasi Gudang', type: 'textarea' },
+      { key: 'status', label: 'Status', type: 'select', options: [
+        { value: 'active', label: 'Aktif' },
+        { value: 'inactive', label: 'Nonaktif' }
+      ], required: true }
+    ]
+  }
+};
+
+const StockSchema = {
+  resource: 'stocks',
+  sheet: 'Stocks',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'warehouse_id', label: 'ID Gudang', type: 'badge', searchable: true, sortable: true },
+    { key: 'product_id', label: 'ID Produk', type: 'badge', searchable: true, sortable: true },
+    { key: 'quantity', label: 'Jumlah Saldo', type: 'number', sortable: true },
+    { key: 'updated_at', label: 'Terakhir Update', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'warehouse_id', label: 'Gudang', type: 'select', options: [], required: true },
+      { key: 'product_id', label: 'Produk', type: 'select', options: [], required: true },
+      { key: 'quantity', label: 'Jumlah Saldo Stok', type: 'number', required: true }
+    ]
+  }
+};
 </script>
+

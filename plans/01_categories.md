@@ -9,13 +9,13 @@ Dokumen ini adalah panduan kerja granular untuk **Fase 1**. Dokumen ini merinci 
 
 | Task ID | Nama Tugas | Strategi Eksekusi | Prasyarat (Blocked By) | Agen Pelaksana | File Target | Status |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: |
-| **T1.1** | **Definisi Skema Kategori & Update Produk** | `SEQUENTIAL` | Tidak Ada | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[PENDING]` |
-| **T1.2** | **Backend Kategori (Repo, Service, Controller)** | `PARALLEL` | **T1.1** | **Backend Subagent** | `60_CategoryRepository.gs`<br>`61_CategoryService.gs`<br>`62_CategoryController.gs` | `[PENDING]` |
-| **T1.3** | **Frontend UI Tab Kategori (`Tab_Categories`)** | `PARALLEL` | **T1.1** | **Frontend Subagent** | `Tab_Categories.html`<br>`Main.html` (nav)<br>`Scripts.html` (routing) | `[PENDING]` |
-| **T1.4** | **API Adapter & RBAC Extension** | `PARALLEL` | **T1.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[PENDING]` |
-| **T1.5** | **Integrasi Dropdown Kategori di Form Produk** | `SEQUENTIAL` | **T1.2**, **T1.3**, **T1.4** | **Frontend Subagent** | `Tab_Products.html` | `[PENDING]` |
-| **T1.6** | **Seeder & Inisialisasi Sheet `Categories`** | `SEQUENTIAL` | **T1.2**, **T1.4** | **Backend Subagent** | `99_Seed.gs` | `[PENDING]` |
-| **T1.7** | **Verifikasi Sistem, Clasp Deploy & Git Commit** | `SEQUENTIAL` | **T1.5**, **T1.6** | **Main Orchestrator Agent** | Runtime Verification | `[PENDING]` |
+| **T1.1** | **Definisi Skema Kategori & Update Produk** | `SEQUENTIAL` | Tidak Ada | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[COMPLETED]` |
+| **T1.2** | **Backend Kategori (Repo, Service, Controller)** | `PARALLEL` | **T1.1** | **Backend Subagent** | `60_CategoryRepository.gs`<br>`61_CategoryService.gs`<br>`62_CategoryController.gs` | `[COMPLETED]` |
+| **T1.3** | **Frontend UI Tab Kategori (`Tab_Categories`)** | `PARALLEL` | **T1.1** | **Frontend Subagent** | `Tab_Categories.html`<br>`Main.html` (nav)<br>`Scripts.html` (routing) | `[COMPLETED]` |
+| **T1.4** | **API Adapter & RBAC Extension** | `PARALLEL` | **T1.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[COMPLETED]` |
+| **T1.5** | **Integrasi Dropdown Kategori di Form Produk** | `SEQUENTIAL` | **T1.2**, **T1.3**, **T1.4** | **Frontend Subagent** | `Tab_Products.html` | `[COMPLETED]` |
+| **T1.6** | **Seeder & Inisialisasi Sheet `Categories`** | `SEQUENTIAL` | **T1.2**, **T1.4** | **Backend Subagent** | `99_Seed.gs` | `[COMPLETED]` |
+| **T1.7** | **Verifikasi Sistem, Clasp Deploy & Git Commit** | `SEQUENTIAL` | **T1.5**, **T1.6** | **Main Orchestrator Agent** | Runtime Verification | `[COMPLETED]` |
 
 ```mermaid
 flowchart TD

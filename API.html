@@ -81,6 +81,22 @@
       create: (data) => API.call('categoriesCreate', data),
       update: (id, data) => API.call('categoriesUpdate', id, data),
       delete: (id) => API.call('categoriesDelete', id)
+    },
+
+    warehouses: {
+      list: () => API.call('warehousesList'),
+      get: (id) => API.call('warehousesGet', id),
+      create: (data) => API.call('warehousesCreate', data),
+      update: (id, data) => API.call('warehousesUpdate', id, data),
+      delete: (id) => API.call('warehousesDelete', id)
+    },
+
+    stocks: {
+      list: () => API.call('stocksList'),
+      getByProduct: (productId) => API.call('stocksGetByProduct', productId),
+      getByWarehouse: (warehouseId) => API.call('stocksGetByWarehouse', warehouseId),
+      setBalance: (payload) => API.call('stocksSetBalance', payload)
     }
   };
 </script>
+

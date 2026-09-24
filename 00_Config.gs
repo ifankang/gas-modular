@@ -27,7 +27,9 @@ const Config = {
         products: ['read', 'create', 'edit', 'delete'],
         orders: ['read', 'create', 'edit', 'delete'],
         roles: ['read', 'create', 'edit', 'delete'],
-        categories: ['read', 'create', 'edit', 'delete']
+        categories: ['read', 'create', 'edit', 'delete'],
+        warehouses: ['read', 'create', 'edit', 'delete'],
+        stocks: ['read', 'create', 'edit', 'delete']
       }
     },
     manager: {
@@ -36,7 +38,9 @@ const Config = {
         users: ['read'],
         products: ['read', 'create', 'edit', 'delete'],
         orders: ['read', 'create', 'edit', 'delete'],
-        categories: ['read', 'create', 'edit', 'delete']
+        categories: ['read', 'create', 'edit', 'delete'],
+        warehouses: ['read', 'create', 'edit'],
+        stocks: ['read', 'create', 'edit']
       }
     },
     staff: {
@@ -44,18 +48,23 @@ const Config = {
       permissions: {
         products: ['read', 'create', 'edit'],
         orders: ['read', 'create', 'edit'],
-        categories: ['read']
+        categories: ['read'],
+        warehouses: ['read'],
+        stocks: ['read']
       }
     },
     viewer: {
       name: 'Viewer',
       permissions: {
         products: ['read'],
-        categories: ['read']
+        categories: ['read'],
+        warehouses: ['read'],
+        stocks: ['read']
       }
     }
   },
   RBAC: {
     ENABLED: true
   }
+
 };

@@ -1,0 +1,236 @@
+<div class="mb-5 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Gudang (Warehouses)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola daftar lokasi penyimpanan barang, gudang pusat, dan toko cabang</p>
+  </div>
+  <!-- Desktop Add Button -->
+  <button id="btn-add-warehouse" onclick="WarehousesTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    <span>+ Tambah Gudang</span>
+  </button>
+</div>
+
+<!-- Mobile Floating Action Button (FAB) -->
+<button 
+  id="fab-add-warehouse"
+  onclick="WarehousesTab.openCreateModal()" 
+  class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+  title="Tambah Gudang Cepat"
+>
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+</button>
+
+<div id="warehouses-table-container"></div>
+
+<script>
+const WarehousesTab = (function() {
+  const tableContainerId = 'warehouses-table-container';
+  let isInitialized = false;
+
+  function updateAccessUI() {
+    const canCreate = typeof Auth !== 'undefined' && Auth.can('warehouses', 'create');
+    const desktopBtn = document.getElementById('btn-add-warehouse');
+    const fabBtn = document.getElementById('fab-add-warehouse');
+    if (desktopBtn) desktopBtn.style.display = canCreate ? '' : 'none';
+    if (fabBtn) fabBtn.style.display = canCreate ? '' : 'none';
+  }
+
+  function init() {
+    updateAccessUI();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData();
+    }
+  }
+
+  function loadData() {
+    updateAccessUI();
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const actions = [];
+    if (typeof Auth !== 'undefined') {
+      if (Auth.can('warehouses', 'edit')) actions.push('edit');
+      if (Auth.can('warehouses', 'delete')) actions.push('delete');
+    } else {
+      actions.push('edit', 'delete');
+    }
+
+    API.warehouses.list()
+      .then(function(response) {
+        let warehouses = [];
+        if (response && response.data && Array.isArray(response.data)) {
+          warehouses = response.data;
+        } else if (Array.isArray(response)) {
+          warehouses = response;
+        }
+
+        Table.render({
+          containerId: tableContainerId,
+          columns: WarehouseSchema.columns,
+          data: warehouses,
+          searchable: true,
+          pagination: true,
+          pageSize: 10,
+          actions: actions,
+          onAction: handleAction
+        });
+      })
+      .catch(function(err) {
+        console.error('Error loading warehouses:', err);
+        Toast.show(err.message || 'Gagal memuat data gudang.', 'error');
+        const container = document.getElementById(tableContainerId);
+        if (container) {
+          container.innerHTML = '<div class="text-center py-12 text-slate-500"><p class="text-sm">Gagal memuat data. Silakan muat ulang halaman.</p></div>';
+        }
+      })
+      .finally(function() {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function handleAction(action, row) {
+    if (action === 'edit') {
+      openEditModal(row);
+    } else if (action === 'delete') {
+      if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'delete')) {
+        Toast.show('Anda tidak memiliki izin untuk menghapus gudang.', 'error');
+        return;
+      }
+
+      if (confirm('Apakah Anda yakin ingin menghapus gudang "' + (row.name || row.code) + '"?')) {
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.warehouses.delete(row.id)
+          .then(function() {
+            Toast.show('Gudang berhasil dihapus.', 'success');
+            loadData();
+          })
+          .catch(function(err) {
+            console.error('Delete warehouse error:', err);
+            Toast.show(err.message || 'Gagal menghapus gudang.', 'error');
+          })
+          .finally(function() {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    }
+  }
+
+  function openCreateModal() {
+    if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'create')) {
+      Toast.show('Anda tidak memiliki izin untuk menambah gudang.', 'error');
+      return;
+    }
+
+    const modalId = 'modal-create-warehouse';
+    const formId = 'form-create-warehouse';
+
+    const formHtml = Form.render({
+      schema: WarehouseSchema,
+      formId: formId,
+      mode: 'create'
+    });
+
+    Modal.create({
+      id: modalId,
+      title: 'Tambah Gudang Baru',
+      content: formHtml,
+      confirmText: 'Simpan Gudang',
+      onConfirm: function() {
+        const formEl = document.getElementById(formId);
+        if (!formEl) return;
+
+        if (typeof Form !== 'undefined' && Form.validate && !Form.validate(formId, WarehouseSchema)) {
+          return;
+        }
+
+        const formData = new FormData(formEl);
+        const data = {};
+        formData.forEach(function(val, key) {
+          data[key] = val;
+        });
+
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.warehouses.create(data)
+          .then(function() {
+            Toast.show('Gudang baru berhasil ditambahkan.', 'success');
+            Modal.close(modalId);
+            loadData();
+          })
+          .catch(function(err) {
+            console.error('Create warehouse error:', err);
+            Toast.show(err.message || 'Gagal menyimpan gudang.', 'error');
+          })
+          .finally(function() {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    });
+  }
+
+  function openEditModal(row) {
+    if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'edit')) {
+      Toast.show('Anda tidak memiliki izin untuk mengubah data gudang.', 'error');
+      return;
+    }
+
+    const modalId = 'modal-edit-warehouse';
+    const formId = 'form-edit-warehouse';
+
+    const formHtml = Form.render({
+      schema: WarehouseSchema,
+      formId: formId,
+      mode: 'edit',
+      initialData: row
+    });
+
+    Modal.create({
+      id: modalId,
+      title: 'Edit Gudang: ' + (row.name || row.code),
+      content: formHtml,
+      confirmText: 'Simpan Perubahan',
+      onConfirm: function() {
+        const formEl = document.getElementById(formId);
+        if (!formEl) return;
+
+        if (typeof Form !== 'undefined' && Form.validate && !Form.validate(formId, WarehouseSchema)) {
+          return;
+        }
+
+        const formData = new FormData(formEl);
+        const data = {};
+        formData.forEach(function(val, key) {
+          data[key] = val;
+        });
+
+        if (typeof Loading !== 'undefined') Loading.show();
+        API.warehouses.update(row.id, data)
+          .then(function() {
+            Toast.show('Data gudang berhasil diperbarui.', 'success');
+            Modal.close(modalId);
+            loadData();
+          })
+          .catch(function(err) {
+            console.error('Update warehouse error:', err);
+            Toast.show(err.message || 'Gagal memperbarui gudang.', 'error');
+          })
+          .finally(function() {
+            if (typeof Loading !== 'undefined') Loading.hide();
+          });
+      }
+    });
+  }
+
+  return {
+    init: init,
+    loadData: loadData,
+    openCreateModal: openCreateModal,
+    openEditModal: openEditModal
+  };
+})();
+
+window.initWarehousesTab = function() {
+  WarehousesTab.init();
+};
+</script>

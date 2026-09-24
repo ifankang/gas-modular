@@ -316,6 +316,7 @@ const Table = (function() {
             </svg>
             <span>Edit</span>
           `;
+          btn.onclick = () => onAction && onAction(act, row);
         } else if (act === 'delete') {
           btn.className = 'inline-flex items-center px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-md border border-red-200 transition-colors';
           btn.innerHTML = `
@@ -324,10 +325,19 @@ const Table = (function() {
             </svg>
             <span>Hapus</span>
           `;
+          btn.onclick = () => onAction && onAction(act, row);
+        } else if (typeof act === 'object' && act.name) {
+          btn.className = act.className || 'inline-flex items-center px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition-colors';
+          btn.innerHTML = `${act.icon || ''}<span>${act.label || act.name}</span>`;
+          btn.onclick = () => onAction && onAction(act.name, row);
+        } else {
+          btn.className = 'inline-flex items-center px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition-colors';
+          btn.innerHTML = `<span>${act}</span>`;
+          btn.onclick = () => onAction && onAction(act, row);
         }
-        btn.onclick = () => onAction && onAction(act, row);
         container.appendChild(btn);
       });
+
       return container;
     }
 

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture Docs — GAS Modular CRUD (DataBridge)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: #f8fafc; color: #0f172a; line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #fff; padding: 40px 24px; text-align: center;
+  }
+  header h1 { margin: 0 0 8px; font-size: 26px; }
+  header p { margin: 0; opacity: .85; font-size: 14px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+  section {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 24px 28px; margin-top: 28px; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  h2 { font-size: 19px; margin: 0 0 4px; color: #1d4ed8; }
+  h2 + p.sub { margin: 0 0 16px; font-size: 13.5px; color: #64748b; }
+  pre.mermaid {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 16px; overflow-x: auto; display: flex; justify-content: center;
+  }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; font-size: 14px; }
+  code {
+    background: #eff6ff; color: #1d4ed8; padding: 1px 6px;
+    border-radius: 5px; font-size: 12.5px; font-family: ui-monospace, Consolas, monospace;
+  }
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+    padding: 2px 10px; border-radius: 999px; margin-right: 6px;
+  }
+  .tag.blue  { background:#dbeafe; color:#1d4ed8; }
+  .tag.green { background:#d1fae5; color:#047857; }
+  .tag.amber { background:#fef3c7; color:#b45309; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 12px; }
+  th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+  th { background: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DataBridge — GAS Modular CRUD Framework</h1>
+  <p>Penjelasan arsitektur codebase dalam diagram Mermaid &middot; Google Apps Script + Google Spreadsheet sebagai database</p>
+</header>
+
+<main>
+
+  <!-- ============ 1. RINGKASAN ============ -->
+  <section>
+    <h2>1. Ringkasan Codebase</h2>
+    <p class="sub">Apa yang sebenarnya dibangun proyek ini?</p>
+    <ul>
+      <li><b>Framework CRUD modular</b> berjalan penuh di <b>Google Apps Script (V8)</b> — tanpa npm, tanpa bundler, tanpa React/Vue.</li>
+      <li><b>Google Spreadsheet adalah database-nya</b>; semua tabel (Users, Products, Categories, Roles) adalah sheet.</li>
+      <li><b>Configuration-driven</b>: satu objek <code>Schema</code> menjadi single source of truth untuk kolom tabel, form, validasi, prefix ID, dan mapping sheet.</li>
+      <li><b>RAM Cache</b> via <code>CacheService</code> memangkas latensi baca dari ~1500ms ke ~5ms, dengan auto-invalidation pada setiap mutasi.</li>
+      <li><b>RBAC end-to-end</b>: dicek ganda di client (<code>Auth.can</code>) dan server (<code>RBAC.authorize</code>) per resource × action.</li>
+      <li>Entitas yang sudah ada: <span class="tag blue">Users</span> <span class="tag blue">Products</span> <span class="tag blue">Categories</span> <span class="tag blue">Roles</span> — sedangkan <span class="tag amber">Orders</span> masih tab placeholder (siap dikembangkan sesuai protokol ekspansi).</li>
+    </ul>
+  </section>
+
+  <!-- ============ 2. ARSITEKTUR LAYER ============ -->
+  <section>
+    <h2>2. Arsitektur Layer (Big Picture)</h2>
+    <p class="sub">Dua sisi: frontend template HTML GAS dan backend layer .gs — terhubung lewat <code>google.script.run</code> yang dibungkus Promise oleh <code>API.html</code>.</p>
+    <pre class="mermaid">
+flowchart TB
+    subgraph FE["🖥️ FRONTEND (file .html)"]
+        direction TB
+        MAIN["Main.html<br/>App Shell<br/>(sidebar desktop + bottom nav mobile)"]
+        LOGIN["Page_Login.html<br/>Login screen"]
+        SCHEMA_FE["01_Schema_Frontend.html<br/>Schema (source of truth UI)"]
+        COMP["Component_*.html<br/>Table · Form · Modal · Toast<br/>Pagination · PageHeader · Loading<br/>(100% entity-agnostic)"]
+        TABS["Tab_*.html<br/>Dashboard · Users · Products<br/>Categories · Roles · Orders"]
+        APIADP["API.html<br/>Promise adapter<br/>(menyisipkan session token)"]
+        SCRIPTS["Scripts.html<br/>App (routing, RBAC client)<br/>Auth.can(resource, action)"]
+    end
+
+    subgraph BE["⚙️ BACKEND (file .gs)"]
+        direction TB
+        APP["01_App.gs<br/>doGet(e) + include()"]
+        CTRL["X2_Controller.gs<br/>usersList, productsCreate, dst.<br/>try-catch + Response"]
+        SVC["X1_Service.gs<br/>Business logic<br/>(hash password, sanitasi)"]
+        REPO["11_Repository.gs + X0_Repository.gs<br/>Generic CRUD berbasis Schema"]
+        DB["10_Database.gs<br/>Header mapping · LockService<br/>CacheService (RAM cache)"]
+        AUTHM["04_Auth.gs + 05_RBAC.gs<br/>Login · Session · Authorization"]
+        RESP["02_Response.gs + 03_Utils.gs<br/>Payload standar · generateId · SHA-256"]
+        SEED["99_Seed.gs<br/>Seeder sheet + data awal"]
+    end
+
+    SS[("📊 Google Spreadsheet<br/>Sheets: Users · Products<br/>Categories · Roles")]
+
+    MAIN --> TABS
+    TABS --> COMP
+    TABS --> APIADP
+    COMP --> SCHEMA_FE
+    MAIN --> LOGIN --> SCRIPTS
+    APIADP -- "google.script.run" --> CTRL
+    CTRL --> AUTHM
+    CTRL --> SVC --> REPO --> DB
+    DB --> SS
+    DB <-. "cache hit/miss<br/>TTL 300s" .-> CACHE[("CacheService")]
+    AUTHM -.-> CACHE
+    APP --> MAIN
+    RESP --- CTRL
+    SEED --> SS
+    </pre>
+  </section>
+
+  <!-- ============ 3. ALUR REQUEST CRUD ============ -->
+  <section>
+    <h2>3. Alur Satu Request CRUD (contoh: buka daftar Users)</h2>
+    <p class="sub">Dari klik tab di browser sampai baris spreadsheet kembali menjadi objek JavaScript.</p>
+    <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant T as Tab_Users
+    participant A as API.html (Promise)
+    participant C as usersList() Controller
+    participant R as RBAC.authorize
+    participant S as UserService
+    participant G as Repository
+    participant D as Database
+    participant K as CacheService
+    participant X as Spreadsheet
+
+    T->>A: API.users.list()
+    A->>A: ambil token dari localStorage<br/>("gas_auth_user")
+    A->>C: google.script.run usersList(token)
+    C->>R: authorize(token, 'users', 'read')
+    R->>K: session_token ?
+    K-->>R: session (atau fallback ke DB Users)
+    R-->>C: ✅ session (punya izin read)
+    C->>S: UserService.findAll()
+    S->>G: UserRepository.findAll()
+    G->>D: Database.findAll('Users')
+    alt Cache HIT
+        D->>K: get("DB_CACHE_USERS")
+        K-->>D: JSON records (~5ms)
+    else Cache MISS
+        D->>X: getRange().getValues()
+        X-->>D: raw rows
+        D->>D: mapRowToObject(header mapping)<br/>tidak ada row[0], row[1] !
+        D->>K: put(cache, TTL 300s)
+    end
+    D-->>G: array of objects
+    G-->>S: array of objects
+    S-->>S: hapus field password (sanitasi)
+    S-->>C: users[]
+    C-->>A: Response.success(data)
+    A-->>T: resolve Promise
+    T->>T: Table.render(schema.columns)
+    </pre>
+  </section>
+
+  <!-- ============ 4. LOGIN & RBAC ============ -->
+  <section>
+    <h2>4. Alur Login &amp; RBAC End-to-End</h2>
+    <p class="sub">Otorisasi dicek dua kali: di client (menyembunyikan UI) dan di server (gate sesungguhnya — client tidak bisa dipercaya).</p>
+    <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant L as Page_Login
+    participant C as authLogin() Controller
+    participant S as AuthService.login
+    participant D as Database (Users)
+    participant K as CacheService
+    participant AP as App (Scripts.html)
+
+    U->>L: email + password
+    L->>C: authLogin(email, password)
+    C->>S: login(email, password)
+    S->>D: findAll('Users')  (via cache)
+    D-->>S: semua user
+    S->>S: Utils.hashPassword (SHA-256)<br/>bandingkan dengan kolom password
+    S->>S: resolve permissions:<br/>admin wildcard → user.permissions<br/>→ Roles sheet → Config.ROLES
+    S->>K: put("session_" + token, 6 jam)<br/>token = USR-xxx_uuid
+    S-->>C: { id, name, email, role, permissions, token, rolesMap }
+    C-->>L: Response.success(session)
+    L->>AP: simpan localStorage("gas_auth_user")
+    AP->>AP: applyRBAC()<br/>sembunyikan nav/tab yang tidak diizinkan
+    AP->>AP: navigate('dashboard')
+    </pre>
+
+    <pre class="mermaid">
+flowchart LR
+    REQ["Request + token"] --> EN{"Config.RBAC.<br/>ENABLED?"}
+    EN -- "tidak" --> OK["✅ Lolos"]
+    EN -- "ya" --> SES{"Session valid?<br/>(cache / DB Users)"}
+    SES -- "tidak" --> DEN["❌ 401:<br/>Sesi kedaluwarsa"]
+    SES -- "ya" --> PERM["getEffectivePermissions()"]
+    PERM --> ADM{"role = admin?"}
+    ADM -- "ya" --> OK
+    ADM -- "tidak" --> CUS{"user.permissions<br/>(custom JSON)?"}
+    CUS -- "ya" --> CUS2{"action ada di<br/>permissions[resource]?"}
+    CUS -- "tidak" --> ROLE{"Roles sheet<br/>(dynamic)?"}
+    ROLE -- "ada" --> ROLE2{"action diizinkan?"}
+    ROLE -- "tidak" --> DEF{"Config.ROLES<br/>(fallback)?"}
+    CUS2 -- "ya" --> OK
+    CUS2 -- "tidak" --> DEN2["❌ Akses ditolak"]
+    ROLE2 -- "ya" --> OK
+    ROLE2 -- "tidak" --> DEN2
+    DEF -- "ya" --> DEF2{"action diizinkan?"}
+    DEF2 -- "ya" --> OK
+    DEF2 -- "tidak" --> DEN2
+    DEF -- "tidak" --> DEN2
+    </pre>
+  </section>
+
+  <!-- ============ 5. DATABASE & CACHE ============ -->
+  <section>
+    <h2>5. Mesin Database: Header Mapping + Lock + RAM Cache</h2>
+    <p class="sub">Satu-satunya modul yang boleh menyentuh <code>SpreadsheetApp</code> — modul lain hanya melihat objek JavaScript.</p>
+    <pre class="mermaid">
+flowchart TB
+    subgraph READ["Database.findAll(sheetName)"]
+        A1["Cache enabled?"] --> A2{"get(DB_CACHE_SHEET)"}
+        A2 -- "HIT" --> A3["JSON.parse → return<br/>(~5ms, hemat kuota)"]
+        A2 -- "MISS" --> A4["Baca sheet: header baris 1<br/>+ getValues() data"]
+        A4 --> A5["mapRowToObject:<br/>header[i] → objek[header]"]
+        A5 --> A6{"ukuran JSON<br/>< 95 KB?"}
+        A6 -- "ya" --> A7["put cache, TTL 300s"]
+        A6 -- "tidak" --> A8["lewati caching<br/>(limit CacheService 100KB)"]
+        A7 --> A9["return records"]
+        A8 --> A9
+    end
+
+    subgraph WRITE["Mutasi: create / update / delete"]
+        B1["LockService.waitLock(10s)<br/>(anti race condition)"] --> B2["Tulis / hapus baris"]
+        B2 --> B3["invalidateCache(sheet)<br/>→ ZERO STALE DATA"]
+    end
+
+    READ -.-> CACHE[("CacheService<br/>key: DB_CACHE_USERS, dst.")]
+    WRITE -.-> CACHE
+    </pre>
+
+    <ul>
+      <li><b>Resilient Header Mapping</b> — urutan kolom sheet boleh diubah admin; aplikasi tidak rusak karena tidak ada <code>row[0]</code>/<code>row[1]</code> di luar <code>10_Database.gs</code>.</li>
+      <li><b>ID otomatis</b> oleh <code>Repository.create</code>: cari max sequence lalu <code>Utils.generateId</code> → <code>USR-000001</code>, <code>PRD-000001</code>, <code>CAT-000001</code>.</li>
+      <li><b>Timestamps otomatis</b>: <code>created_at</code> &amp; <code>updated_at</code> diisi <code>Repository</code>, bukan oleh caller.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 6. MODEL DATA ============ -->
+  <section>
+    <h2>6. Model Data (ERD)</h2>
+    <p class="sub">Relasi antar sheet yang dikelola framework. Semua schema didefinisikan di <code>01_Schema.gs</code> (backend) dan <code>01_Schema_Frontend.html</code> (frontend, identik).</p>
+    <pre class="mermaid">
+erDiagram
+    ROLES ||--o{ USERS : "users.role"
+    CATEGORIES ||--o{ PRODUCTS : "products.category_id"
+
+    USERS {
+        string id PK "USR-000001"
+        string name
+        string email
+        string password "SHA-256 hash"
+        string role FK "admin | manager | staff | custom"
+        string status "active | inactive"
+        string permissions "JSON custom override"
+        string token "session"
+        datetime created_at
+        datetime updated_at
+    }
+    PRODUCTS {
+        string id PK "PRD-000001"
+        string code
+        string name
+        string category_id FK
+        number price
+        number cost_price
+        number stock
+        string unit
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+    CATEGORIES {
+        string id PK "CAT-000001"
+        string code "ELK, FNB, ATK"
+        string name
+        string description
+        datetime created_at
+    }
+    ROLES {
+        string role PK "idField bukan 'id'!"
+        string name
+        string users "csv: read,create,edit,delete"
+        string products "csv actions"
+        string orders "csv actions"
+        string categories "csv actions"
+        string description
+    }
+    </pre>
+    <p style="font-size:13.5px;color:#475569">Catatan: <code>Roles</code> memakai <code>idField: 'role'</code> dan <code>idPrefix: ''</code> — bukti bahwa Repository/Database benar-benar generik, tidak mengasumsikan primary key selalu <code>id</code>.</p>
+  </section>
+
+  <!-- ============ 7. STRUKTUR FILE ============ -->
+  <section>
+    <h2>7. Struktur File &amp; Naming Convention</h2>
+    <p class="sub">GAS tidak punya folder — hierarki arsitektur dipaksa lewat prefix angka pada nama file.</p>
+    <pre class="mermaid">
+flowchart TB
+    subgraph CFG["00–09 · Fondasi"]
+        C00["00_Config.gs<br/>SPREADSHEET_ID, CACHE, ROLES, RBAC"]
+        C01["01_App.gs / 01_Schema.gs<br/>doGet + definisi schema backend"]
+        C02["02_Response · 03_Utils · 04_Auth · 05_RBAC"]
+    end
+
+    subgraph CORE["10–19 · Core Generic Engines"]
+        E10["10_Database.gs<br/>Spreadsheet + Lock + Cache"]
+        E11["11_Repository.gs<br/>Generic CRUD"]
+        E12["12_Validator.gs<br/>Validasi server-side"]
+    end
+
+    subgraph ENT["20–99 · Modul Entitas (blok per 10)"]
+        E20["20s: Users<br/>Repo + Service + Controller"]
+        E30["30s: Products<br/>Repo + Service + Controller"]
+        E60["60s: Categories"]
+        E50["50s: Roles (Service + Controller)"]
+        E99["99_Seed.gs<br/>Seeder sheet & data demo"]
+    end
+
+    subgraph UI["Frontend .html"]
+        U1["Main.html · Styles.html · Scripts.html"]
+        U2["API.html · 01_Schema_Frontend.html"]
+        U3["Component_*.html (generic)"]
+        U4["Tab_*.html (per halaman)"]
+    end
+
+    CFG --> CORE --> ENT
+    U1 --> U2 --> U3
+    U1 --> U4 --> U3
+    </pre>
+    <table>
+      <tr><th>Prefix</th><th>Layer</th><th>Contoh</th></tr>
+      <tr><td><code>00–09</code></td><td>Konfigurasi, schema, response, utils, auth, RBAC</td><td><code>00_Config.gs</code>, <code>05_RBAC.gs</code></td></tr>
+      <tr><td><code>10–19</code></td><td>Core generic engines (boleh dipakai semua entitas)</td><td><code>10_Database.gs</code>, <code>11_Repository.gs</code></td></tr>
+      <tr><td><code>20/30/40…</code></td><td>Blok per entitas: X0 Repository, X1 Service, X2 Controller</td><td><code>21_UserService.gs</code>, <code>32_ProductController.gs</code></td></tr>
+      <tr><td><code>90–99</code></td><td>Maintenance &amp; seeder</td><td><code>99_Seed.gs</code></td></tr>
+      <tr><td><code>Component_*.html</code></td><td>Komponen UI generik — <b>dilarang</b> berisi logika bisnis</td><td><code>Component_Table.html</code></td></tr>
+      <tr><td><code>Tab_*.html</code></td><td>Halaman bisnis per entitas</td><td><code>Tab_Products.html</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ============ 8. EXPANSION PROTOCOL ============ -->
+  <section>
+    <h2>8. Protokol Menambah Entitas Baru (contoh: Orders)</h2>
+    <p class="sub">Enam langkah terisolasi sesuai <code>AGENTS.md</code> — tanpa menulis ulang kode CRUD.</p>
+    <pre class="mermaid">
+flowchart TD
+    S1["① Definisikan OrderSchema<br/>di 01_Schema.gs + 01_Schema_Frontend.html<br/>(sheet, idPrefix ORD, columns, form)"]
+    S2["② Backend: 41_OrderService.gs<br/>(panggil Repository generic)<br/>+ 42_OrderController.gs<br/>(ordersList/Get/Create/Update/Delete<br/>+ try-catch + Response)"]
+    S3["③ Daftarkan ke API.html:<br/>orders: { list, get, create, update, delete }"]
+    S4["④ Buat Tab_Orders.html:<br/>PageHeader + Modal + Form + Table<br/>berbasis OrderSchema<br/>+ window.initOrdersTab"]
+    S5["⑤ Pasang di Main.html:<br/>nav data-nav='orders'<br/>+ div tab-orders + include"]
+    S6["⑥ Seeder di 99_Seed.gs:<br/>sheet Orders + header + 2 baris contoh"]
+    DONE["🎉 CRUD lengkap otomatis:<br/>cache, ID prefix, timestamps,<br/>search, sort, pagination,<br/>mobile card view, RBAC"]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> DONE
+    </pre>
+  </section>
+
+  <!-- ============ 9. ATURAN EMAS ============ -->
+  <section>
+    <h2>9. Aturan Emas (Strict Don'ts)</h2>
+    <p class="sub">Pelanggaran aturan ini merusak arsitektur framework.</p>
+    <ul>
+      <li>🚫 <code>SpreadsheetApp</code> <b>hanya</b> boleh di <code>10_Database.gs</code> — bypass = cache basi (stale).</li>
+      <li>🚫 Komponen/Tab <b>dilarang</b> memanggil <code>google.script.run</code> langsung — wajib via <code>API.html</code> (Promise).</li>
+      <li>🚫 Dilarang menulis <code>&lt;?!= include('File_Belum_Ada'); ?&gt;</code> — template GAS mengevaluasi dan langsung crash.</li>
+      <li>🚫 Controller wajib <code>try-catch</code> + <code>Response.error()</code> — tidak boleh ada unhandled exception ke client.</li>
+      <li>🚫 <code>LockService</code> pada operasi mutasi/pembuatan ID tidak boleh dihapus.</li>
+      <li>🚫 <code>Component_*.html</code> harus tetap 100% entity-agnostic.</li>
+      <li>🚫 Zero heavy build dependencies — vanilla JS ES6+ dan Tailwind CDN saja.</li>
+    </ul>
+  </section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#2563eb',
+      lineColor: '#64748b',
+      fontSize: '13px'
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    sequence: { useMaxWidth: true },
+    er: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>
