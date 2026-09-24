@@ -30,7 +30,8 @@ const Config = {
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit', 'delete'],
         stocks: ['read', 'create', 'edit', 'delete'],
-        transfers: ['read', 'create', 'edit', 'delete', 'approve', 'receive']
+        transfers: ['read', 'create', 'edit', 'delete', 'approve', 'receive'],
+        reports: ['read', 'export']
       }
     },
     manager: {
@@ -42,7 +43,8 @@ const Config = {
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit'],
         stocks: ['read', 'create', 'edit'],
-        transfers: ['read', 'create', 'edit', 'approve', 'receive']
+        transfers: ['read', 'create', 'edit', 'approve', 'receive'],
+        reports: ['read', 'export']
       }
     },
 
@@ -54,7 +56,8 @@ const Config = {
         categories: ['read'],
         warehouses: ['read'],
         stocks: ['read'],
-        transfers: ['read', 'create']
+        transfers: ['read', 'create'],
+        reports: ['read']
       }
     },
     spg: {

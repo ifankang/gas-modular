@@ -121,4 +121,29 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 1rem);
   }
+
+  /* Professional Document Print Layout */
+  @media print {
+    .app-sidebar,
+    header,
+    nav,
+    .print\:hidden {
+      display: none !important;
+    }
+    body {
+      background: white !important;
+      color: black !important;
+    }
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+    }
+    .print\:block {
+      display: block !important;
+    }
+    .print\:grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+  }
 </style>

@@ -27,7 +27,7 @@ flowchart TD
 | **Fase 2** | **Multi-Gudang & Saldo Stok** | [`plans/02_warehouses_and_stocks.md`](plans/02_warehouses_and_stocks.md) | **Sub-Tasks Paralel** | Selesai Fase 1 | 🟢 `COMPLETED` |
 | **Fase 3** | **Pindah Gudang & Engine Mutasi Stok** | [`plans/03_stock_transfers_and_mutations.md`](plans/03_stock_transfers_and_mutations.md) | **Sub-Tasks Paralel** | Selesai Fase 2 | 🟢 `COMPLETED` |
 | **Fase 4** | **Purchase Order (PO) & Sales Order (SO)** | [`plans/04_orders_po_so.md`](plans/04_orders_po_so.md) | **Sub-Tasks Paralel** | Selesai Fase 3 | 🟢 `COMPLETED` |
-| **Fase 5** | **Sistem Laporan Bisnis & Ekspor** | [`plans/05_reporting_engine.md`](plans/05_reporting_engine.md) | **Sub-Tasks Paralel** | Selesai Fase 4 | 🟢 `READY TO EXECUTE` |
+| **Fase 5** | **Sistem Laporan Bisnis & Ekspor** | [`plans/05_reporting_engine.md`](plans/05_reporting_engine.md) | **Sub-Tasks Paralel** | Selesai Fase 4 | 🟢 `COMPLETED` |
 
 ---
 

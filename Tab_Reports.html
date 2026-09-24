@@ -1,0 +1,766 @@
+<!-- Tab_Reports.html -->
+<!-- Modul Sistem Laporan Bisnis Komprehensif & Ekspor Data -->
+
+<div class="space-y-6">
+  <!-- 1. PAGE HEADER -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm print:hidden">
+    <div>
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-800 flex items-center space-x-2">
+        <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <span>Laporan Bisnis & Inventaris</span>
+      </h1>
+      <p class="text-xs sm:text-sm text-slate-500 mt-1">
+        Ringkasan eksekutif, kartu stok, valuasi aset, pembelian, penjualan, dan rekap transfer antar-gudang.
+      </p>
+    </div>
+
+    <!-- Export & Print Action Buttons -->
+    <div class="flex items-center space-x-2.5">
+      <button 
+        type="button" 
+        onclick="ReportsTab.exportCSV()" 
+        id="btn-export-csv"
+        class="inline-flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg shadow-sm transition-all focus:outline-none"
+      >
+        <svg class="w-4 h-4 mr-1.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <span>Ekspor CSV</span>
+      </button>
+
+      <button 
+        type="button" 
+        onclick="ReportsTab.printReport()" 
+        class="inline-flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-sm transition-all focus:outline-none"
+      >
+        <svg class="w-4 h-4 mr-1.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+        </svg>
+        <span>Cetak / PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PRINT ONLY HEADER (Visible only during window.print()) -->
+  <div class="hidden print:block mb-6 pb-4 border-b-2 border-slate-800">
+    <div class="flex justify-between items-start">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">GAS MODULAR SUPPLY CHAIN</h1>
+        <p class="text-sm text-slate-600 font-medium" id="print-report-title">Laporan Bisnis & Inventaris</p>
+      </div>
+      <div class="text-right text-xs text-slate-500">
+        <p>Tanggal Cetak: <span id="print-date"></span></p>
+        <p>Dicetak Oleh: <span id="print-user">Admin</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. EXECUTIVE KPI CARDS -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4" id="reports-kpi-container">
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Item Fisik</div>
+      <div class="text-xl sm:text-2xl font-bold text-slate-800 mt-1" id="kpi-total-items">-</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">Seluruh unit di gudang</div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div class="text-xs font-semibold text-blue-600 uppercase tracking-wider">Valuasi Aset Stok</div>
+      <div class="text-xl sm:text-2xl font-bold text-blue-700 mt-1 truncate" id="kpi-total-valuation">-</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">Berdasarkan harga modal</div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div class="text-xs font-semibold text-purple-600 uppercase tracking-wider">Omzet Penjualan (SO)</div>
+      <div class="text-xl sm:text-2xl font-bold text-purple-700 mt-1 truncate" id="kpi-total-sales">-</div>
+      <div class="text-[11px] text-slate-400 mt-0.5" id="kpi-sales-orders-count">0 transaksi</div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Total Pengadaan (PO)</div>
+      <div class="text-xl sm:text-2xl font-bold text-amber-700 mt-1 truncate" id="kpi-total-purchases">-</div>
+      <div class="text-[11px] text-slate-400 mt-0.5" id="kpi-purchase-orders-count">0 transaksi</div>
+    </div>
+  </div>
+
+  <!-- 3. REPORT TYPE SELECTOR & FILTER BAR -->
+  <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 print:hidden">
+    <!-- Sub-Tab Laporan Switcher -->
+    <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+      <button 
+        type="button" 
+        data-report-type="stock_card" 
+        class="report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-sm"
+      >
+        Kartu Stok (Ledger)
+      </button>
+      <button 
+        type="button" 
+        data-report-type="valuation" 
+        class="report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200"
+      >
+        Valuasi Aset Stok
+      </button>
+      <button 
+        type="button" 
+        data-report-type="sales" 
+        class="report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200"
+      >
+        Laporan Penjualan (SO)
+      </button>
+      <button 
+        type="button" 
+        data-report-type="purchases" 
+        class="report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200"
+      >
+        Laporan Pembelian (PO)
+      </button>
+      <button 
+        type="button" 
+        data-report-type="transfers" 
+        class="report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200"
+      >
+        Rekap Pindah Gudang
+      </button>
+    </div>
+
+    <!-- Filter Inputs Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <!-- Date Range (From & To) -->
+      <div id="filter-from-date-group">
+        <label class="block font-semibold text-slate-600 mb-1">Dari Tanggal</label>
+        <input type="date" id="filter-from-date" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+      </div>
+      <div id="filter-to-date-group">
+        <label class="block font-semibold text-slate-600 mb-1">Sampai Tanggal</label>
+        <input type="date" id="filter-to-date" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+      </div>
+
+      <!-- Warehouse Filter -->
+      <div id="filter-warehouse-group">
+        <label class="block font-semibold text-slate-600 mb-1">Gudang</label>
+        <select id="filter-warehouse" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+          <option value="">-- Semua Gudang --</option>
+        </select>
+      </div>
+
+      <!-- Contextual Filter (Product / Category / Status) -->
+      <div id="filter-product-group">
+        <label class="block font-semibold text-slate-600 mb-1">Produk</label>
+        <select id="filter-product" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+          <option value="">-- Semua Produk --</option>
+        </select>
+      </div>
+
+      <div id="filter-status-group" class="hidden">
+        <label class="block font-semibold text-slate-600 mb-1">Status</label>
+        <select id="filter-status" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+          <option value="">-- Semua Status --</option>
+          <option value="draft">Draft</option>
+          <option value="approved">Approved</option>
+          <option value="shipped">Shipped</option>
+          <option value="received">Received</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+      <button 
+        type="button" 
+        onclick="ReportsTab.resetFilters()" 
+        class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium"
+      >
+        Reset Filter
+      </button>
+      <button 
+        type="button" 
+        onclick="ReportsTab.applyFilters()" 
+        class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all inline-flex items-center space-x-1"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <span>Terapkan Filter</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. REPORT CONTENT TABLE -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Active Report Sub-Header / Summary Info -->
+    <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="text-xs sm:text-sm font-bold text-slate-700" id="report-table-caption">
+        Memuat Laporan...
+      </div>
+      <div class="text-xs text-slate-500 font-medium" id="report-table-summary">
+        -
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="reports-loading" class="py-16 text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="text-xs text-slate-500 mt-2 font-medium">Sedang mengagregasikan data laporan...</p>
+    </div>
+
+    <!-- Table Container -->
+    <div class="overflow-x-auto hidden" id="reports-table-container">
+      <table class="w-full text-left text-xs sm:text-sm border-collapse" id="reports-main-table">
+        <thead class="bg-slate-100 text-slate-700 uppercase font-semibold text-[11px] tracking-wider border-b border-slate-200" id="reports-table-head">
+          <!-- Dynamically Rendered Header -->
+        </thead>
+        <tbody class="divide-y divide-slate-200 text-slate-700" id="reports-table-body">
+          <!-- Dynamically Rendered Rows -->
+        </tbody>
+        <tfoot class="bg-slate-50 font-bold border-t-2 border-slate-300 text-slate-800" id="reports-table-foot">
+          <!-- Dynamically Rendered Footer / Summary Row -->
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="reports-empty" class="py-16 text-center hidden">
+      <svg class="w-12 h-12 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      <p class="text-sm font-semibold text-slate-600">Tidak ada data untuk filter yang dipilih</p>
+      <p class="text-xs text-slate-400 mt-0.5">Ubah rentang tanggal atau kriteria filter untuk melihat hasil.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  /**
+   * ReportsTab Controller & Client-Side Export Engine
+   */
+  const ReportsTab = {
+    activeReportType: 'stock_card', // 'stock_card' | 'valuation' | 'sales' | 'purchases' | 'transfers'
+    activeReportData: null,
+    productsList: [],
+    warehousesList: [],
+
+    init: function() {
+      console.log('ReportsTab Initializing...');
+      this.bindEvents();
+      this.loadLookups();
+      this.loadSummaryKPIs();
+      this.loadActiveReport();
+    },
+
+    bindEvents: function() {
+      const typeButtons = document.querySelectorAll('.report-type-btn');
+      typeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const newType = e.currentTarget.getAttribute('data-report-type');
+          if (newType === this.activeReportType) return;
+
+          this.activeReportType = newType;
+          typeButtons.forEach(b => {
+            b.className = 'report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200';
+          });
+          e.currentTarget.className = 'report-type-btn px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-sm';
+
+          this.updateFilterVisibility();
+          this.loadActiveReport();
+        });
+      });
+    },
+
+    updateFilterVisibility: function() {
+      const productGroup = document.getElementById('filter-product-group');
+      const statusGroup = document.getElementById('filter-status-group');
+      const dateFromGroup = document.getElementById('filter-from-date-group');
+      const dateToGroup = document.getElementById('filter-to-date-group');
+
+      if (this.activeReportType === 'stock_card') {
+        productGroup.classList.remove('hidden');
+        statusGroup.classList.add('hidden');
+        dateFromGroup.classList.remove('hidden');
+        dateToGroup.classList.remove('hidden');
+      } else if (this.activeReportType === 'valuation') {
+        productGroup.classList.add('hidden');
+        statusGroup.classList.add('hidden');
+        dateFromGroup.classList.add('hidden');
+        dateToGroup.classList.add('hidden');
+      } else if (this.activeReportType === 'sales' || this.activeReportType === 'purchases' || this.activeReportType === 'transfers') {
+        productGroup.classList.add('hidden');
+        statusGroup.classList.remove('hidden');
+        dateFromGroup.classList.remove('hidden');
+        dateToGroup.classList.remove('hidden');
+      }
+    },
+
+    loadLookups: function() {
+      // Muat daftar gudang
+      API.warehouses.list().then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          this.warehousesList = res.data;
+          const whSelect = document.getElementById('filter-warehouse');
+          whSelect.innerHTML = '<option value="">-- Semua Gudang --</option>';
+          res.data.forEach(w => {
+            whSelect.innerHTML += `<option value="${w.id}">${w.name} (${w.code})</option>`;
+          });
+        }
+      }).catch(err => console.error('Error loading warehouses:', err));
+
+      // Muat daftar produk
+      API.products.list().then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          this.productsList = res.data;
+          const prdSelect = document.getElementById('filter-product');
+          prdSelect.innerHTML = '<option value="">-- Semua Produk --</option>';
+          res.data.forEach(p => {
+            prdSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.code})</option>`;
+          });
+        }
+      }).catch(err => console.error('Error loading products:', err));
+    },
+
+    loadSummaryKPIs: function() {
+      API.reports.summary().then(res => {
+        if (res.success && res.data) {
+          const d = res.data;
+          document.getElementById('kpi-total-items').innerText = (d.total_inventory_items || 0).toLocaleString('id-ID');
+          document.getElementById('kpi-total-valuation').innerText = this.formatCurrency(d.total_inventory_valuation || 0);
+          document.getElementById('kpi-total-sales').innerText = this.formatCurrency(d.total_sales_amount || 0);
+          document.getElementById('kpi-sales-orders-count').innerText = `${d.total_sales_orders || 0} transaksi`;
+          document.getElementById('kpi-total-purchases').innerText = this.formatCurrency(d.total_purchase_amount || 0);
+          document.getElementById('kpi-purchase-orders-count').innerText = `${d.total_purchase_orders || 0} transaksi`;
+        }
+      }).catch(err => console.error('Error loading KPI summary:', err));
+    },
+
+    getFilterValues: function() {
+      return {
+        from_date: document.getElementById('filter-from-date').value,
+        to_date: document.getElementById('filter-to-date').value,
+        warehouse_id: document.getElementById('filter-warehouse').value,
+        product_id: document.getElementById('filter-product').value,
+        status: document.getElementById('filter-status').value
+      };
+    },
+
+    resetFilters: function() {
+      document.getElementById('filter-from-date').value = '';
+      document.getElementById('filter-to-date').value = '';
+      document.getElementById('filter-warehouse').value = '';
+      document.getElementById('filter-product').value = '';
+      document.getElementById('filter-status').value = '';
+      this.loadActiveReport();
+    },
+
+    applyFilters: function() {
+      this.loadActiveReport();
+    },
+
+    loadActiveReport: function() {
+      const loading = document.getElementById('reports-loading');
+      const tableContainer = document.getElementById('reports-table-container');
+      const emptyState = document.getElementById('reports-empty');
+      const caption = document.getElementById('report-table-caption');
+      const summaryEl = document.getElementById('report-table-summary');
+
+      loading.classList.remove('hidden');
+      tableContainer.classList.add('hidden');
+      emptyState.classList.add('hidden');
+
+      const params = this.getFilterValues();
+
+      let apiCall = null;
+      if (this.activeReportType === 'stock_card') {
+        caption.innerText = 'Kartu Stok Inventaris (Stock Ledger Card)';
+        apiCall = API.reports.stockCard(params);
+      } else if (this.activeReportType === 'valuation') {
+        caption.innerText = 'Valuasi Aset Inventaris (Cost Valuation)';
+        apiCall = API.reports.stockValuation(params);
+      } else if (this.activeReportType === 'sales') {
+        caption.innerText = 'Laporan Penjualan (Sales Orders Summary)';
+        apiCall = API.reports.sales(params);
+      } else if (this.activeReportType === 'purchases') {
+        caption.innerText = 'Laporan Pengadaan / Pembelian (Purchase Orders)';
+        apiCall = API.reports.purchases(params);
+      } else if (this.activeReportType === 'transfers') {
+        caption.innerText = 'Rekap Mutasi Pindah Gudang (Stock Transfers)';
+        apiCall = API.reports.transfers(params);
+      }
+
+      if (!apiCall) return;
+
+      apiCall.then(res => {
+        loading.classList.add('hidden');
+        if (!res.success) {
+          Toast.error(res.message || 'Gagal memuat laporan.');
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        this.activeReportData = res.data;
+        this.renderTable(this.activeReportType, res.data);
+      }).catch(err => {
+        loading.classList.add('hidden');
+        Toast.error(err.message || 'Terjadi kesalahan sistem.');
+        emptyState.classList.remove('hidden');
+      });
+    },
+
+    renderTable: function(type, data) {
+      const tableContainer = document.getElementById('reports-table-container');
+      const emptyState = document.getElementById('reports-empty');
+      const thead = document.getElementById('reports-table-head');
+      const tbody = document.getElementById('reports-table-body');
+      const tfoot = document.getElementById('reports-table-foot');
+      const summaryEl = document.getElementById('report-table-summary');
+
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      tfoot.innerHTML = '';
+
+      if (type === 'stock_card') {
+        const entries = data.entries || [];
+        if (entries.length === 0 && data.opening_balance === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        summaryEl.innerText = `Saldo Awal: ${data.opening_balance} | Masuk: ${data.total_in} | Keluar: ${data.total_out} | Saldo Akhir: ${data.closing_balance}`;
+
+        thead.innerHTML = `
+          <tr>
+            <th class="px-4 py-3">Tanggal</th>
+            <th class="px-4 py-3">Dokumen</th>
+            <th class="px-4 py-3">Gudang</th>
+            <th class="px-4 py-3">Produk</th>
+            <th class="px-4 py-3 text-right">Masuk</th>
+            <th class="px-4 py-3 text-right">Keluar</th>
+            <th class="px-4 py-3 text-right">Saldo</th>
+            <th class="px-4 py-3">Keterangan</th>
+          </tr>
+        `;
+
+        // Row saldo awal
+        let html = `
+          <tr class="bg-slate-50/50 font-medium">
+            <td class="px-4 py-2.5 text-slate-500 italic">-</td>
+            <td class="px-4 py-2.5 font-semibold text-slate-700" colspan="3">SALDO AWAL PERIODE</td>
+            <td class="px-4 py-2.5 text-right">-</td>
+            <td class="px-4 py-2.5 text-right">-</td>
+            <td class="px-4 py-2.5 text-right font-bold text-slate-900">${data.opening_balance}</td>
+            <td class="px-4 py-2.5 text-slate-400 text-xs">Posisi awal sebelum periode dipilih</td>
+          </tr>
+        `;
+
+        entries.forEach(e => {
+          html += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-2.5 whitespace-nowrap text-slate-600">${e.date}</td>
+              <td class="px-4 py-2.5">
+                <span class="inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">${e.reference_type}</span>
+                <span class="text-xs font-mono text-slate-500 ml-1">${e.reference_id}</span>
+              </td>
+              <td class="px-4 py-2.5 text-slate-600">${e.warehouse_name}</td>
+              <td class="px-4 py-2.5 font-medium text-slate-800">${e.product_name} <span class="text-slate-400 font-mono text-xs">(${e.product_code})</span></td>
+              <td class="px-4 py-2.5 text-right font-semibold text-emerald-600">${e.qty_in > 0 ? '+' + e.qty_in : '-'}</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-red-600">${e.qty_out > 0 ? '-' + e.qty_out : '-'}</td>
+              <td class="px-4 py-2.5 text-right font-bold text-blue-800">${e.balance}</td>
+              <td class="px-4 py-2.5 text-slate-500 text-xs">${e.notes || '-'}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+
+        tfoot.innerHTML = `
+          <tr>
+            <td class="px-4 py-3" colspan="4">TOTAL MUTASI & SALDO AKHIR</td>
+            <td class="px-4 py-3 text-right text-emerald-700 font-bold">+${data.total_in}</td>
+            <td class="px-4 py-3 text-right text-red-700 font-bold">-${data.total_out}</td>
+            <td class="px-4 py-3 text-right text-blue-900 font-extrabold">${data.closing_balance}</td>
+            <td class="px-4 py-3"></td>
+          </tr>
+        `;
+      } 
+      else if (type === 'valuation') {
+        const items = data.items || [];
+        if (items.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        summaryEl.innerText = `Total ${items.length} item produk | Valuasi: ${this.formatCurrency(data.total_valuation || 0)}`;
+
+        thead.innerHTML = `
+          <tr>
+            <th class="px-4 py-3">Gudang</th>
+            <th class="px-4 py-3">Kode</th>
+            <th class="px-4 py-3">Nama Produk</th>
+            <th class="px-4 py-3">Kategori</th>
+            <th class="px-4 py-3 text-right">Kuantitas</th>
+            <th class="px-4 py-3 text-right">Harga Modal</th>
+            <th class="px-4 py-3 text-right">Nilai Aset (Rp)</th>
+            <th class="px-4 py-3 text-right">Potensi Omzet (Rp)</th>
+          </tr>
+        `;
+
+        let html = '';
+        items.forEach(it => {
+          html += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-2.5 font-medium text-slate-700">${it.warehouse_name}</td>
+              <td class="px-4 py-2.5 font-mono text-xs text-slate-500">${it.product_code}</td>
+              <td class="px-4 py-2.5 font-semibold text-slate-900">${it.product_name}</td>
+              <td class="px-4 py-2.5 text-slate-600">${it.category_name}</td>
+              <td class="px-4 py-2.5 text-right font-bold text-slate-800">${it.quantity} ${it.unit}</td>
+              <td class="px-4 py-2.5 text-right text-slate-600">${this.formatCurrency(it.cost_price)}</td>
+              <td class="px-4 py-2.5 text-right font-bold text-blue-700">${this.formatCurrency(it.valuation)}</td>
+              <td class="px-4 py-2.5 text-right font-medium text-emerald-700">${this.formatCurrency(it.potential_revenue)}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+
+        tfoot.innerHTML = `
+          <tr>
+            <td class="px-4 py-3" colspan="4">TOTAL KONSOLIDASI VALUASI INVENTARIS</td>
+            <td class="px-4 py-3 text-right font-bold">${data.total_quantity} unit</td>
+            <td class="px-4 py-3"></td>
+            <td class="px-4 py-3 text-right font-extrabold text-blue-800">${this.formatCurrency(data.total_valuation)}</td>
+            <td class="px-4 py-3"></td>
+          </tr>
+        `;
+      }
+      else if (type === 'sales' || type === 'purchases') {
+        const orders = data.orders || [];
+        if (orders.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        const isSales = type === 'sales';
+        summaryEl.innerText = `Total ${orders.length} Transaksi | Akumulasi: ${this.formatCurrency(data.total_amount || 0)}`;
+
+        thead.innerHTML = `
+          <tr>
+            <th class="px-4 py-3">No. Transaksi</th>
+            <th class="px-4 py-3">Tanggal</th>
+            <th class="px-4 py-3">${isSales ? 'Pelanggan' : 'Pemasok'}</th>
+            <th class="px-4 py-3">${isSales ? 'Gudang Pengirim' : 'Gudang Tujuan'}</th>
+            <th class="px-4 py-3 text-center">Status</th>
+            <th class="px-4 py-3 text-right">Nilai Total</th>
+          </tr>
+        `;
+
+        let html = '';
+        orders.forEach(o => {
+          html += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-2.5 font-bold font-mono text-blue-700">${o.order_no}</td>
+              <td class="px-4 py-2.5 text-slate-600">${o.date}</td>
+              <td class="px-4 py-2.5 font-medium text-slate-800">${isSales ? o.customer : o.supplier}</td>
+              <td class="px-4 py-2.5 text-slate-600">${o.warehouse_name}</td>
+              <td class="px-4 py-2.5 text-center">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${this.getStatusBadgeClass(o.status)}">${o.status}</span>
+              </td>
+              <td class="px-4 py-2.5 text-right font-bold text-slate-900">${this.formatCurrency(o.total_amount)}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+
+        tfoot.innerHTML = `
+          <tr>
+            <td class="px-4 py-3" colspan="5">TOTAL AKUMULASI NILAI TRANSAKSI</td>
+            <td class="px-4 py-3 text-right font-extrabold text-blue-900">${this.formatCurrency(data.total_amount)}</td>
+          </tr>
+        `;
+      }
+      else if (type === 'transfers') {
+        const transfers = data.transfers || [];
+        if (transfers.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        summaryEl.innerText = `Total ${transfers.length} Pindah Gudang`;
+
+        thead.innerHTML = `
+          <tr>
+            <th class="px-4 py-3">No. Transfer</th>
+            <th class="px-4 py-3">Tanggal</th>
+            <th class="px-4 py-3">Gudang Asal</th>
+            <th class="px-4 py-3">Gudang Tujuan</th>
+            <th class="px-4 py-3 text-center">Status</th>
+            <th class="px-4 py-3">Disetujui Oleh</th>
+            <th class="px-4 py-3">Diterima Oleh</th>
+            <th class="px-4 py-3">Catatan</th>
+          </tr>
+        `;
+
+        let html = '';
+        transfers.forEach(t => {
+          html += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-2.5 font-bold font-mono text-blue-700">${t.transfer_no}</td>
+              <td class="px-4 py-2.5 text-slate-600">${t.date}</td>
+              <td class="px-4 py-2.5 text-slate-700 font-medium">${t.source_warehouse_name}</td>
+              <td class="px-4 py-2.5 text-slate-700 font-medium">${t.destination_warehouse_name}</td>
+              <td class="px-4 py-2.5 text-center">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${this.getStatusBadgeClass(t.status)}">${t.status}</span>
+              </td>
+              <td class="px-4 py-2.5 text-slate-600 text-xs">${t.approved_by}</td>
+              <td class="px-4 py-2.5 text-slate-600 text-xs">${t.received_by}</td>
+              <td class="px-4 py-2.5 text-slate-500 text-xs">${t.notes || '-'}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+
+        tfoot.innerHTML = `
+          <tr>
+            <td class="px-4 py-3" colspan="8">TOTAL DOKUMEN TRANSFER: ${transfers.length}</td>
+          </tr>
+        `;
+      }
+
+      tableContainer.classList.remove('hidden');
+    },
+
+    getStatusBadgeClass: function(status) {
+      switch (status) {
+        case 'draft': return 'bg-slate-100 text-slate-700';
+        case 'approved': return 'bg-blue-100 text-blue-800';
+        case 'approved_shipped':
+        case 'shipped': return 'bg-amber-100 text-amber-800';
+        case 'received':
+        case 'completed': return 'bg-emerald-100 text-emerald-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        default: return 'bg-slate-100 text-slate-700';
+      }
+    },
+
+    formatCurrency: function(val) {
+      return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
+    },
+
+    /**
+     * CLIENT-SIDE CSV EXPORT ENGINE
+     * Menghasilkan Blob CSV langsung pada browser pengguna tanpa menggunakan resource/kuota GAS!
+     */
+    exportCSV: function() {
+      if (!this.activeReportData) {
+        Toast.warning('Tidak ada data laporan untuk diekspor.');
+        return;
+      }
+
+      let csvRows = [];
+      const type = this.activeReportType;
+      const data = this.activeReportData;
+
+      if (type === 'stock_card') {
+        csvRows.push(['Tanggal', 'Dokumen Tipe', 'ID Dokumen', 'Gudang', 'Produk', 'Kode Produk', 'Masuk', 'Keluar', 'Saldo Berjalan', 'Keterangan']);
+        csvRows.push(['-', 'SALDO AWAL', '-', '-', '-', '-', '-', '-', data.opening_balance, 'Saldo Awal Periode']);
+        (data.entries || []).forEach(e => {
+          csvRows.push([
+            e.date,
+            e.reference_type,
+            e.reference_id,
+            `"${e.warehouse_name}"`,
+            `"${e.product_name}"`,
+            e.product_code,
+            e.qty_in,
+            e.qty_out,
+            e.balance,
+            `"${(e.notes || '').replace(/"/g, '""')}"`
+          ]);
+        });
+        csvRows.push(['-', 'TOTAL AKHIR', '-', '-', '-', '-', data.total_in, data.total_out, data.closing_balance, '']);
+      }
+      else if (type === 'valuation') {
+        csvRows.push(['Gudang', 'Kode Produk', 'Nama Produk', 'Kategori', 'Kuantitas', 'Satuan', 'Harga Modal (Rp)', 'Nilai Aset (Rp)', 'Harga Jual (Rp)', 'Potensi Omzet (Rp)']);
+        (data.items || []).forEach(it => {
+          csvRows.push([
+            `"${it.warehouse_name}"`,
+            it.product_code,
+            `"${it.product_name}"`,
+            `"${it.category_name}"`,
+            it.quantity,
+            it.unit,
+            it.cost_price,
+            it.valuation,
+            it.selling_price,
+            it.potential_revenue
+          ]);
+        });
+        csvRows.push(['TOTAL KONSOLIDASI', '-', '-', '-', data.total_quantity, '-', '-', data.total_valuation, '-', '-']);
+      }
+      else if (type === 'sales' || type === 'purchases') {
+        const isSales = type === 'sales';
+        csvRows.push(['No. Transaksi', 'Tanggal', isSales ? 'Pelanggan' : 'Pemasok', isSales ? 'Gudang Pengirim' : 'Gudang Tujuan', 'Status', 'Total Nilai (Rp)']);
+        (data.orders || []).forEach(o => {
+          csvRows.push([
+            o.order_no,
+            o.date,
+            `"${isSales ? o.customer : o.supplier}"`,
+            `"${o.warehouse_name}"`,
+            o.status,
+            o.total_amount
+          ]);
+        });
+        csvRows.push(['TOTAL AKUMULASI', '-', '-', '-', '-', data.total_amount]);
+      }
+      else if (type === 'transfers') {
+        csvRows.push(['No. Transfer', 'Tanggal', 'Gudang Asal', 'Gudang Tujuan', 'Status', 'Disetujui Oleh', 'Diterima Oleh', 'Catatan']);
+        (data.transfers || []).forEach(t => {
+          csvRows.push([
+            t.transfer_no,
+            t.date,
+            `"${t.source_warehouse_name}"`,
+            `"${t.destination_warehouse_name}"`,
+            t.status,
+            `"${t.approved_by}"`,
+            `"${t.received_by}"`,
+            `"${(t.notes || '').replace(/"/g, '""')}"`
+          ]);
+        });
+      }
+
+      const csvContent = '\uFEFF' + csvRows.map(e => e.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Laporan_${type}_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      Toast.success('Laporan berhasil diekspor ke file CSV.');
+    },
+
+    /**
+     * NATIVE PRINT & PDF GENERATOR
+     */
+    printReport: function() {
+      const caption = document.getElementById('report-table-caption').innerText;
+      document.getElementById('print-report-title').innerText = caption;
+      document.getElementById('print-date').innerText = new Date().toLocaleString('id-ID');
+      
+      const stored = localStorage.getItem('gas_auth_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          document.getElementById('print-user').innerText = user.name || user.email;
+        } catch(e) {}
+      }
+
+      window.print();
+    }
+  };
+
+  window.initReportsTab = function() {
+    ReportsTab.init();
+  };
+</script>

@@ -9,12 +9,12 @@ Dokumen ini adalah panduan kerja granular untuk **Fase 5**. Dokumen ini merinci 
 
 | Task ID | Nama Tugas | Strategi Eksekusi | Prasyarat (Blocked By) | Agen Pelaksana | File Target | Status |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: |
-| **T5.1** | **Backend Reporting Engine (`ReportService`)** | `SEQUENTIAL` | Selesai Fase 4 | **Backend Core Subagent** | `90_ReportService.gs` | `[PENDING]` |
-| **T5.2** | **Backend Report Controller & Endpoints** | `PARALLEL` | **T5.1** | **Backend Subagent** | `91_ReportController.gs` | `[PENDING]` |
-| **T5.3** | **Frontend UI Tab Laporan (`Tab_Reports`)** | `PARALLEL` | **T5.1** | **Frontend Subagent** | `Tab_Reports.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[PENDING]` |
-| **T5.4** | **Client-Side Export Engine (CSV & Print PDF)** | `PARALLEL` | **T5.1** | **Frontend Subagent** | `Component_Export.html` (atau inline util) | `[PENDING]` |
-| **T5.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T5.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[PENDING]` |
-| **T5.6** | **Verifikasi Agregasi Data, Deploy & Commit** | `SEQUENTIAL` | **T5.2**, **T5.3**, **T5.4**, **T5.5** | **Main Orchestrator Agent** | Runtime Verification | `[PENDING]` |
+| **T5.1** | **Backend Reporting Engine (`ReportService`)** | `SEQUENTIAL` | Selesai Fase 4 | **Backend Core Subagent** | `90_ReportService.gs` | 🟢 `[COMPLETED]` |
+| **T5.2** | **Backend Report Controller & Endpoints** | `PARALLEL` | **T5.1** | **Backend Subagent** | `91_ReportController.gs` | 🟢 `[COMPLETED]` |
+| **T5.3** | **Frontend UI Tab Laporan (`Tab_Reports`)** | `PARALLEL` | **T5.1** | **Frontend Subagent** | `Tab_Reports.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | 🟢 `[COMPLETED]` |
+| **T5.4** | **Client-Side Export Engine (CSV & Print PDF)** | `PARALLEL` | **T5.1** | **Frontend Subagent** | `Tab_Reports.html`<br>`Styles.html` (@media print) | 🟢 `[COMPLETED]` |
+| **T5.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T5.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs` | 🟢 `[COMPLETED]` |
+| **T5.6** | **Verifikasi Agregasi Data, Deploy & Commit** | `SEQUENTIAL` | **T5.2**, **T5.3**, **T5.4**, **T5.5** | **Main Orchestrator Agent** | Runtime Verification | 🟢 `[COMPLETED]` |
 
 ```mermaid
 flowchart TD

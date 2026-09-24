@@ -119,6 +119,15 @@
 
     mutations: {
       list: (filter) => API.call('mutationsList', filter)
+    },
+
+    reports: {
+      stockCard: (params) => API.call('reportsStockCard', params),
+      stockValuation: (params) => API.call('reportsStockValuation', params),
+      purchases: (params) => API.call('reportsPurchases', params),
+      sales: (params) => API.call('reportsSales', params),
+      transfers: (params) => API.call('reportsTransfers', params),
+      summary: () => API.call('reportsSummary')
     }
   };
 </script>
