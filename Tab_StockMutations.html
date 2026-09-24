@@ -1,0 +1,131 @@
+<div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Riwayat Mutasi Stok (Stock Ledger)</h1>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Catatan audit riwayat transaksi fisik barang (Masuk, Keluar, Transfer, Penyesuaian)</p>
+  </div>
+  <button onclick="StockMutationsTab.loadData()" class="app-desktop-inline items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+    <span>Refresh Data</span>
+  </button>
+</div>
+
+<!-- Filters Bar -->
+<div class="bg-white border border-slate-200 rounded-xl p-3.5 mb-4 shadow-sm">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+    <div>
+      <label class="block font-semibold text-slate-600 mb-1">Filter Gudang</label>
+      <select id="filter-mut-warehouse" onchange="StockMutationsTab.loadData()" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+        <option value="">-- Semua Gudang --</option>
+      </select>
+    </div>
+    <div>
+      <label class="block font-semibold text-slate-600 mb-1">Filter Produk</label>
+      <select id="filter-mut-product" onchange="StockMutationsTab.loadData()" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+        <option value="">-- Semua Produk --</option>
+      </select>
+    </div>
+    <div>
+      <label class="block font-semibold text-slate-600 mb-1">Tipe Mutasi</label>
+      <select id="filter-mut-type" onchange="StockMutationsTab.loadData()" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+        <option value="">-- Semua Tipe --</option>
+        <option value="IN">IN (Barang Masuk)</option>
+        <option value="OUT">OUT (Barang Keluar)</option>
+        <option value="TRANSFER_OUT">TRANSFER_OUT (Pindah Keluar)</option>
+        <option value="TRANSFER_IN">TRANSFER_IN (Pindah Masuk)</option>
+        <option value="ADJUSTMENT">ADJUSTMENT (Penyesuaian)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Table Container -->
+<div id="mutations-table-container"></div>
+
+<script>
+const StockMutationsTab = (function() {
+  const tableContainerId = 'mutations-table-container';
+  let isInitialized = false;
+
+  function init() {
+    loadFilterOptions();
+    if (!isInitialized) {
+      loadData();
+      isInitialized = true;
+    } else {
+      loadData();
+    }
+  }
+
+  function loadFilterOptions() {
+    Promise.all([
+      API.warehouses.list(),
+      API.products.list()
+    ]).then(([whRes, prdRes]) => {
+      const warehouses = (whRes && whRes.data) || whRes || [];
+      const products = (prdRes && prdRes.data) || prdRes || [];
+
+      const whSelect = document.getElementById('filter-mut-warehouse');
+      if (whSelect) {
+        whSelect.innerHTML = '<option value="">-- Semua Gudang --</option>' +
+          warehouses.map(w => `<option value="${w.id}">${w.name} (${w.code})</option>`).join('');
+      }
+
+      const prdSelect = document.getElementById('filter-mut-product');
+      if (prdSelect) {
+        prdSelect.innerHTML = '<option value="">-- Semua Produk --</option>' +
+          products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      }
+    }).catch(err => {
+      console.warn('Failed to load filter options:', err);
+    });
+  }
+
+  function loadData() {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    const whFilter = document.getElementById('filter-mut-warehouse')?.value || '';
+    const prdFilter = document.getElementById('filter-mut-product')?.value || '';
+    const typeFilter = document.getElementById('filter-mut-type')?.value || '';
+
+    const filter = {};
+    if (whFilter) filter.warehouse_id = whFilter;
+    if (prdFilter) filter.product_id = prdFilter;
+    if (typeFilter) filter.type = typeFilter;
+
+    API.mutations.list(filter)
+      .then(function(response) {
+        let mutations = [];
+        if (response && response.data && Array.isArray(response.data)) {
+          mutations = response.data;
+        } else if (Array.isArray(response)) {
+          mutations = response;
+        }
+
+        Table.render({
+          containerId: tableContainerId,
+          columns: StockMutationSchema.columns,
+          data: mutations,
+          searchable: true,
+          pagination: true,
+          pageSize: 15
+        });
+      })
+      .catch(function(err) {
+        console.error('Error loading mutations:', err);
+        Toast.show(err.message || 'Gagal memuat riwayat mutasi stok.', 'error');
+      })
+      .finally(function() {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  return {
+    init: init,
+    loadData: loadData
+  };
+})();
+
+window.initStockMutationsTab = function() {
+  StockMutationsTab.init();
+};
+</script>

@@ -9,14 +9,14 @@ Dokumen ini adalah panduan kerja granular untuk **Fase 2**. Dokumen ini merinci 
 
 | Task ID | Nama Tugas | Strategi Eksekusi | Prasyarat (Blocked By) | Agen Pelaksana | File Target | Status |
 | :---: | :--- | :---: | :---: | :---: | :--- | :---: |
-| **T2.1** | **Definisi Skema Gudang & Saldo Stok** | `SEQUENTIAL` | Selesai Fase 1 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[PENDING]` |
-| **T2.2** | **Backend Gudang (Repo, Service, Controller)** | `PARALLEL` | **T2.1** | **Backend Subagent** | `70_WarehouseRepository.gs`<br>`71_WarehouseService.gs`<br>`72_WarehouseController.gs` | `[PENDING]` |
-| **T2.3** | **Backend Saldo Stok (`StockService`)** | `PARALLEL` | **T2.1** | **Backend Subagent** | `75_StockService.gs`<br>`75_StockController.gs` | `[PENDING]` |
-| **T2.4** | **Frontend UI Tab Gudang (`Tab_Warehouses`)** | `PARALLEL` | **T2.1** | **Frontend Subagent** | `Tab_Warehouses.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[PENDING]` |
-| **T2.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T2.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[PENDING]` |
-| **T2.6** | **Tampilan Rincian Stok Gudang di Tab Produk** | `SEQUENTIAL` | **T2.3**, **T2.4**, **T2.5** | **Frontend Subagent** | `Tab_Products.html` | `[PENDING]` |
-| **T2.7** | **Seeder Gudang & Inisialisasi Sheet `Stocks`** | `SEQUENTIAL` | **T2.2**, **T2.3**, **T2.5** | **Backend Subagent** | `99_Seed.gs` | `[PENDING]` |
-| **T2.8** | **Verifikasi Sistem, Clasp Deploy & Git Commit** | `SEQUENTIAL` | **T2.6**, **T2.7** | **Main Orchestrator Agent** | Runtime Verification | `[PENDING]` |
+| **T2.1** | **Definisi Skema Gudang & Saldo Stok** | `SEQUENTIAL` | Selesai Fase 1 | **Architect / Core Agent** | `01_Schema.gs`<br>`01_Schema_Frontend.html` | `[COMPLETED]` |
+| **T2.2** | **Backend Gudang (Repo, Service, Controller)** | `PARALLEL` | **T2.1** | **Backend Subagent** | `70_WarehouseRepository.gs`<br>`71_WarehouseService.gs`<br>`72_WarehouseController.gs` | `[COMPLETED]` |
+| **T2.3** | **Backend Saldo Stok (`StockService`)** | `PARALLEL` | **T2.1** | **Backend Subagent** | `75_StockService.gs`<br>`75_StockController.gs` | `[COMPLETED]` |
+| **T2.4** | **Frontend UI Tab Gudang (`Tab_Warehouses`)** | `PARALLEL` | **T2.1** | **Frontend Subagent** | `Tab_Warehouses.html`<br>`Main.html` (nav)<br>`Scripts.html` (router) | `[COMPLETED]` |
+| **T2.5** | **API Adapter & RBAC Extension** | `PARALLEL` | **T2.1** | **Backend / Core Subagent** | `API.html`<br>`00_Config.gs`<br>`05_RBAC.gs` | `[COMPLETED]` |
+| **T2.6** | **Tampilan Rincian Stok Gudang di Tab Produk** | `SEQUENTIAL` | **T2.3**, **T2.4**, **T2.5** | **Frontend Subagent** | `Tab_Products.html` | `[COMPLETED]` |
+| **T2.7** | **Seeder Gudang & Inisialisasi Sheet `Stocks`** | `SEQUENTIAL` | **T2.2**, **T2.3**, **T2.5** | **Backend Subagent** | `99_Seed.gs` | `[COMPLETED]` |
+| **T2.8** | **Verifikasi Sistem, Clasp Deploy & Git Commit** | `SEQUENTIAL` | **T2.6**, **T2.7** | **Main Orchestrator Agent** | Runtime Verification | `[COMPLETED]` |
 
 ```mermaid
 flowchart TD

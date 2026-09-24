@@ -12,7 +12,8 @@
       categories: ['create', 'read', 'edit', 'delete'],
       roles: ['create', 'read', 'edit', 'delete'],
       warehouses: ['create', 'read', 'edit', 'delete'],
-      stocks: ['create', 'read', 'edit', 'delete']
+      stocks: ['create', 'read', 'edit', 'delete'],
+      transfers: ['create', 'read', 'edit', 'delete', 'approve', 'receive']
     },
     manager: {
       dashboard: ['read'],
@@ -21,7 +22,8 @@
       orders: ['create', 'read', 'edit', 'delete'],
       categories: ['create', 'read', 'edit', 'delete'],
       warehouses: ['create', 'read', 'edit'],
-      stocks: ['create', 'read', 'edit']
+      stocks: ['create', 'read', 'edit'],
+      transfers: ['create', 'read', 'edit', 'approve', 'receive']
     },
     staff: {
       dashboard: ['read'],
@@ -29,16 +31,28 @@
       orders: ['read', 'create', 'edit'],
       categories: ['read'],
       warehouses: ['read'],
-      stocks: ['read']
+      stocks: ['read'],
+      transfers: ['read', 'create']
+    },
+    spg: {
+      dashboard: ['read'],
+      products: ['read'],
+      categories: ['read'],
+      warehouses: ['read'],
+      stocks: ['read'],
+      transfers: ['read', 'create', 'receive'],
+      orders: ['read', 'create']
     },
     viewer: {
       dashboard: ['read'],
       products: ['read'],
       categories: ['read'],
       warehouses: ['read'],
-      stocks: ['read']
+      stocks: ['read'],
+      transfers: ['read']
     }
   };
+
 
 
   /**

@@ -96,7 +96,20 @@
       getByProduct: (productId) => API.call('stocksGetByProduct', productId),
       getByWarehouse: (warehouseId) => API.call('stocksGetByWarehouse', warehouseId),
       setBalance: (payload) => API.call('stocksSetBalance', payload)
+    },
+
+    transfers: {
+      list: () => API.call('transfersList'),
+      get: (id) => API.call('transfersGet', id),
+      create: (payload) => API.call('transfersCreate', payload),
+      approveSend: (id) => API.call('transfersApproveSend', id),
+      receive: (id) => API.call('transfersReceive', id)
+    },
+
+    mutations: {
+      list: (filter) => API.call('mutationsList', filter)
     }
   };
 </script>
+
 

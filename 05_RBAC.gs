@@ -138,6 +138,10 @@ const RBAC = {
         const stockActions = parseActions(row.stocks);
         if (stockActions.length > 0) permissions.stocks = stockActions;
 
+        const transferActions = parseActions(row.transfers);
+        if (transferActions.length > 0) permissions.transfers = transferActions;
+
+
 
         if (row.roles !== undefined) {
           const roleActions = parseActions(row.roles);
@@ -180,9 +184,11 @@ const RBAC = {
         roles: ['*'],
         categories: ['*'],
         warehouses: ['*'],
-        stocks: ['*']
+        stocks: ['*'],
+        transfers: ['*']
       };
     }
+
 
     // Check if user has custom permissions
     if (user.permissions) {

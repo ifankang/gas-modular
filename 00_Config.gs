@@ -29,7 +29,8 @@ const Config = {
         roles: ['read', 'create', 'edit', 'delete'],
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit', 'delete'],
-        stocks: ['read', 'create', 'edit', 'delete']
+        stocks: ['read', 'create', 'edit', 'delete'],
+        transfers: ['read', 'create', 'edit', 'delete', 'approve', 'receive']
       }
     },
     manager: {
@@ -40,7 +41,8 @@ const Config = {
         orders: ['read', 'create', 'edit', 'delete'],
         categories: ['read', 'create', 'edit', 'delete'],
         warehouses: ['read', 'create', 'edit'],
-        stocks: ['read', 'create', 'edit']
+        stocks: ['read', 'create', 'edit'],
+        transfers: ['read', 'create', 'edit', 'approve', 'receive']
       }
     },
     staff: {
@@ -50,7 +52,19 @@ const Config = {
         orders: ['read', 'create', 'edit'],
         categories: ['read'],
         warehouses: ['read'],
-        stocks: ['read']
+        stocks: ['read'],
+        transfers: ['read', 'create']
+      }
+    },
+    spg: {
+      name: 'SPG / Staff Toko',
+      permissions: {
+        products: ['read'],
+        categories: ['read'],
+        warehouses: ['read'],
+        stocks: ['read'],
+        transfers: ['read', 'create', 'receive'],
+        orders: ['read', 'create']
       }
     },
     viewer: {
@@ -59,10 +73,12 @@ const Config = {
         products: ['read'],
         categories: ['read'],
         warehouses: ['read'],
-        stocks: ['read']
+        stocks: ['read'],
+        transfers: ['read']
       }
     }
   },
+
   RBAC: {
     ENABLED: true
   }

@@ -183,5 +183,88 @@ const StockSchema = {
     ]
   }
 };
+
+const StockTransferSchema = {
+  resource: 'transfers',
+  sheet: 'StockTransfers',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'transfer_no', label: 'No. Transfer', type: 'badge', searchable: true, sortable: true },
+    { key: 'date', label: 'Tanggal', type: 'date', sortable: true },
+    { key: 'source_warehouse_id', label: 'Gudang Asal', type: 'badge', searchable: true },
+    { key: 'destination_warehouse_id', label: 'Gudang Tujuan', type: 'badge', searchable: true },
+    { key: 'status', label: 'Status', type: 'badge' },
+    { key: 'approved_by', label: 'Disetujui Oleh', type: 'text' },
+    { key: 'approved_at', label: 'Disetujui Pada', type: 'date' },
+    { key: 'received_by', label: 'Diterima Oleh', type: 'text' },
+    { key: 'received_at', label: 'Diterima Pada', type: 'date' },
+    { key: 'notes', label: 'Catatan', type: 'text' },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'transfer_no', label: 'No. Referensi Transfer', type: 'text', required: true },
+      { key: 'source_warehouse_id', label: 'Gudang Asal', type: 'select', options: [], required: true },
+      { key: 'destination_warehouse_id', label: 'Gudang Tujuan', type: 'select', options: [], required: true },
+      { key: 'notes', label: 'Catatan Pengiriman', type: 'textarea' }
+    ]
+  }
+};
+
+const TransferItemSchema = {
+  resource: 'transfer_items',
+  sheet: 'TransferItems',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'transfer_id', label: 'ID Transfer', type: 'badge', searchable: true },
+    { key: 'product_id', label: 'ID Produk', type: 'badge', searchable: true },
+    { key: 'quantity', label: 'Jumlah Kirim', type: 'number', sortable: true },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'transfer_id', label: 'ID Transfer', type: 'text', required: true },
+      { key: 'product_id', label: 'Produk', type: 'select', options: [], required: true },
+      { key: 'quantity', label: 'Jumlah Barang', type: 'number', required: true }
+    ]
+  }
+};
+
+const StockMutationSchema = {
+  resource: 'mutations',
+  sheet: 'StockMutations',
+  idField: 'id',
+  columns: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'date', label: 'Tanggal', type: 'date', sortable: true },
+    { key: 'type', label: 'Tipe Mutasi', type: 'badge', searchable: true, sortable: true },
+    { key: 'reference_type', label: 'Tipe Ref', type: 'badge' },
+    { key: 'reference_id', label: 'ID Dokumen', type: 'text', searchable: true },
+    { key: 'warehouse_id', label: 'Gudang', type: 'badge', searchable: true },
+    { key: 'product_id', label: 'Produk', type: 'badge', searchable: true },
+    { key: 'quantity', label: 'Jumlah', type: 'number', sortable: true },
+    { key: 'notes', label: 'Keterangan', type: 'text' },
+    { key: 'created_by', label: 'Oleh', type: 'text' },
+    { key: 'created_at', label: 'Dibuat', type: 'date' }
+  ],
+  form: {
+    fields: [
+      { key: 'type', label: 'Tipe Mutasi', type: 'select', options: [
+        { value: 'IN', label: 'Barang Masuk (IN)' },
+        { value: 'OUT', label: 'Barang Keluar (OUT)' },
+        { value: 'TRANSFER_OUT', label: 'Pindah Gudang Keluar (TRANSFER_OUT)' },
+        { value: 'TRANSFER_IN', label: 'Pindah Gudang Masuk (TRANSFER_IN)' },
+        { value: 'ADJUSTMENT', label: 'Penyesuaian Stok (ADJUSTMENT)' }
+      ], required: true },
+      { key: 'warehouse_id', label: 'Gudang', type: 'select', options: [], required: true },
+      { key: 'product_id', label: 'Produk', type: 'select', options: [], required: true },
+      { key: 'quantity', label: 'Jumlah', type: 'number', required: true },
+      { key: 'notes', label: 'Keterangan', type: 'textarea' }
+    ]
+  }
+};
 </script>
+
 

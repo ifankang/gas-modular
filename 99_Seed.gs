@@ -205,12 +205,16 @@ function seedDatabase() {
   // 6. Seed Warehouses & Stocks
   seedWarehousesAndStocks(ss, now);
 
+  // 7. Seed Transfers & Mutations (plus SPG sample user)
+  seedTransfersAndMutations(ss, now);
+
   Logger.log('Database seeded and verified successfully.');
   return {
     success: true,
-    message: 'Sheet "Users", "Products", "Roles", "Categories", "Warehouses", dan "Stocks" berhasil diverifikasi dan disiapkan!'
+    message: 'Sheet "Users", "Products", "Roles", "Categories", "Warehouses", "Stocks", "StockTransfers", "TransferItems", dan "StockMutations" berhasil diverifikasi dan disiapkan!'
   };
 }
+
 
 
 /**
@@ -390,5 +394,68 @@ function seedWarehousesAndStocks(ss, now) {
 
   Logger.log('Warehouses and Stocks sheets seeded/verified.');
 }
+
+/**
+ * seedTransfersAndMutations()
+ * Inisialisasi sheet StockTransfers, TransferItems, StockMutations,
+ * serta memastikan akun SPG (spg@example.com) terdaftar.
+ */
+function seedTransfersAndMutations(ss, now) {
+  if (!ss) ss = SpreadsheetApp.openById(Config.SPREADSHEET_ID);
+  if (!now) now = new Date().toISOString();
+
+  // 1. Inisialisasi Sheet StockTransfers
+  let trfSheet = ss.getSheetByName('StockTransfers');
+  if (!trfSheet) {
+    trfSheet = ss.insertSheet('StockTransfers');
+  }
+  const trfHeaders = ['id', 'transfer_no', 'date', 'source_warehouse_id', 'destination_warehouse_id', 'status', 'approved_by', 'approved_at', 'received_by', 'received_at', 'notes', 'created_at', 'updated_at'];
+  if (trfSheet.getLastRow() === 0) {
+    trfSheet.appendRow(trfHeaders);
+  }
+
+  // 2. Inisialisasi Sheet TransferItems
+  let itemSheet = ss.getSheetByName('TransferItems');
+  if (!itemSheet) {
+    itemSheet = ss.insertSheet('TransferItems');
+  }
+  const itemHeaders = ['id', 'transfer_id', 'product_id', 'quantity', 'created_at', 'updated_at'];
+  if (itemSheet.getLastRow() === 0) {
+    itemSheet.appendRow(itemHeaders);
+  }
+
+  // 3. Inisialisasi Sheet StockMutations
+  let mutSheet = ss.getSheetByName('StockMutations');
+  if (!mutSheet) {
+    mutSheet = ss.insertSheet('StockMutations');
+  }
+  const mutHeaders = ['id', 'date', 'type', 'reference_type', 'reference_id', 'warehouse_id', 'product_id', 'quantity', 'notes', 'created_by', 'created_at', 'updated_at'];
+  if (mutSheet.getLastRow() === 0) {
+    mutSheet.appendRow(mutHeaders);
+  }
+
+  // 4. Pastikan Akun SPG Uji Coba Terdaftar di Users
+  Database.clearCache('Users');
+  const existingUsers = Database.findAll('Users');
+  const spgUser = existingUsers.find(u => String(u.email).toLowerCase() === 'spg@example.com');
+  if (!spgUser) {
+    const defaultSpgHash = Utils.hashPassword('spg123');
+    Database.create('Users', {
+      id: Utils.generateId('USR', existingUsers.length + 1),
+      name: 'SPG Toko Mall',
+      email: 'spg@example.com',
+      password: defaultSpgHash,
+      role: 'spg',
+      permissions: '',
+      status: 'active',
+      created_at: now,
+      updated_at: now
+    });
+    Logger.log('Created sample SPG user (spg@example.com / spg123).');
+  }
+
+  Logger.log('StockTransfers, TransferItems, and StockMutations sheets verified.');
+}
+
 
 
