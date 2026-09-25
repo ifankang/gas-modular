@@ -34,7 +34,7 @@
 <div id="orders-table-container"></div>
 
 <script>
-const OrdersTab = (function() {
+var OrdersTab = (function() {
   const tableContainerId = 'orders-table-container';
   let currentType = 'SALES'; // Default ke SALES agar SPG tidak salah input ke Purchase!
   let isInitialized = false;
@@ -611,6 +611,8 @@ const OrdersTab = (function() {
     submitOrder: submitOrder
   };
 })();
+
+window.OrdersTab = OrdersTab;
 
 window.initOrdersTab = function() {
   OrdersTab.init();

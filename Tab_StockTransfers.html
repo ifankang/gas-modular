@@ -27,7 +27,7 @@
 <div id="transfers-table-container"></div>
 
 <script>
-const StockTransfersTab = (function() {
+var StockTransfersTab = (function() {
   const tableContainerId = 'transfers-table-container';
   let isInitialized = false;
   let warehouseCache = [];
@@ -810,6 +810,8 @@ const StockTransfersTab = (function() {
     submitConfirmReceive: submitConfirmReceive
   };
 })();
+
+window.StockTransfersTab = StockTransfersTab;
 
 window.initTransfersTab = function() {
   StockTransfersTab.init();
