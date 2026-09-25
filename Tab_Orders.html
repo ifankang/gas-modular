@@ -1,27 +1,32 @@
 <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
   <div>
-    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Transaksi Orders (PO & SO)</h1>
-    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Pengadaan Barang (Purchase Order) &bull; Penjualan (Sales Order) terintegrasi stok</p>
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">🛒</span>
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Penjualan Toko (Sales Orders)</h1>
+    </div>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Pencatatan transaksi kasir/toko langsung ke pelanggan &bull; Stok gudang/toko langsung terpotong otomatis</p>
   </div>
   <div class="flex items-center space-x-2">
-    <button id="btn-add-po" onclick="OrdersTab.openCreatePurchaseModal()" class="inline-flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all">
+    <!-- Tombol Khusus Penjualan (Utama bagi SPG & Staff) -->
+    <button id="btn-add-so" onclick="OrdersTab.openCreateSalesModal()" class="inline-flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-      <span>+ Buat PO (Beli)</span>
+      <span>+ Catat Penjualan Baru</span>
     </button>
-    <button id="btn-add-so" onclick="OrdersTab.openCreateSalesModal()" class="inline-flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all">
+    <!-- Tombol Pengadaan PO (Hanya tampil untuk Admin/Manager) -->
+    <button id="btn-add-po" onclick="OrdersTab.openCreatePurchaseModal()" class="hidden items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-      <span>+ Buat SO (Jual)</span>
+      <span>+ Buat PO Pengadaan</span>
     </button>
   </div>
 </div>
 
-<!-- Type Switcher Tabs -->
-<div class="flex border-b border-slate-200 mb-4 space-x-6 text-sm">
-  <button id="tab-btn-po" onclick="OrdersTab.switchType('PURCHASE')" class="pb-2.5 font-bold text-blue-600 border-b-2 border-blue-600 transition-all flex items-center space-x-2">
-    <span>Purchase Orders (Pengadaan)</span>
+<!-- Type Switcher Tabs (Default ke SALES agar SPG langsung fokus ke Penjualan) -->
+<div id="order-type-tabs" class="flex border-b border-slate-200 mb-4 space-x-6 text-sm">
+  <button id="tab-btn-so" onclick="OrdersTab.switchType('SALES')" class="pb-2.5 font-bold text-emerald-600 border-b-2 border-emerald-600 transition-all flex items-center space-x-2">
+    <span>🛒 Riwayat Penjualan (Sales)</span>
   </button>
-  <button id="tab-btn-so" onclick="OrdersTab.switchType('SALES')" class="pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2">
-    <span>Sales Orders (Penjualan)</span>
+  <button id="tab-btn-po" onclick="OrdersTab.switchType('PURCHASE')" class="pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2">
+    <span>📥 Pengadaan Masuk (Purchase Orders)</span>
   </button>
 </div>
 
@@ -31,12 +36,37 @@
 <script>
 const OrdersTab = (function() {
   const tableContainerId = 'orders-table-container';
-  let currentType = 'PURCHASE'; // 'PURCHASE' or 'SALES'
+  let currentType = 'SALES'; // Default ke SALES agar SPG tidak salah input ke Purchase!
   let isInitialized = false;
   let warehouseCache = [];
   let productCache = [];
 
+  function updateAccessUI() {
+    const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
+    const role = (user && user.role ? user.role : '').toLowerCase();
+    const isAdminOrManager = role === 'admin' || role === 'manager';
+
+    const poBtn = document.getElementById('btn-add-po');
+    const tabPoBtn = document.getElementById('tab-btn-po');
+    
+    // Sembunyikan fitur PO dari SPG/Staff agar tidak salah input
+    if (poBtn) {
+      if (isAdminOrManager) {
+        poBtn.classList.remove('hidden');
+        poBtn.classList.add('inline-flex');
+      } else {
+        poBtn.classList.add('hidden');
+        poBtn.classList.remove('inline-flex');
+      }
+    }
+
+    if (tabPoBtn) {
+      tabPoBtn.style.display = isAdminOrManager ? '' : 'none';
+    }
+  }
+
   function init() {
+    updateAccessUI();
     loadLookups();
     if (!isInitialized) {
       loadData();
@@ -52,11 +82,11 @@ const OrdersTab = (function() {
     const soBtn = document.getElementById('tab-btn-so');
 
     if (type === 'PURCHASE') {
-      poBtn.className = 'pb-2.5 font-bold text-blue-600 border-b-2 border-blue-600 transition-all flex items-center space-x-2';
-      soBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
+      if (poBtn) poBtn.className = 'pb-2.5 font-bold text-blue-600 border-b-2 border-blue-600 transition-all flex items-center space-x-2';
+      if (soBtn) soBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
     } else {
-      soBtn.className = 'pb-2.5 font-bold text-emerald-600 border-b-2 border-emerald-600 transition-all flex items-center space-x-2';
-      poBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
+      if (soBtn) soBtn.className = 'pb-2.5 font-bold text-emerald-600 border-b-2 border-emerald-600 transition-all flex items-center space-x-2';
+      if (poBtn) poBtn.className = 'pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2';
     }
     loadData();
   }

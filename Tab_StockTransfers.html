@@ -1,12 +1,15 @@
 <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
   <div>
-    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Pindah Gudang (Stock Transfers)</h1>
-    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Mekanisme transfer 2-langkah: Approve Kirim (Admin) &bull; Konfirmasi Terima (SPG / Gudang Tujuan)</p>
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">📦</span>
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Permintaan Barang & Pindah Gudang</h1>
+    </div>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">SPG/Toko meminta pasokan barang &bull; Persetujuan kirim dari Gudang Pusat &bull; Konfirmasi terima di Toko</p>
   </div>
   <!-- Desktop Add Button -->
   <button id="btn-add-transfer" onclick="StockTransfersTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-    <span>+ Buat Permintaan Transfer</span>
+    <span>+ Ajukan Permintaan Barang</span>
   </button>
 </div>
 
