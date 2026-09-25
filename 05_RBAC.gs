@@ -45,15 +45,20 @@ const RBAC = {
 
     let matchedUser = null;
     if (users && users.length > 0) {
-      // Check direct token match
+      // Check direct token match (token stored in users sheet)
       matchedUser = users.find(u => u.token === token);
 
-      // If token format is USR-xxx:uuid or USR-xxx_uuid, extract user ID
-      if (!matchedUser) {
-        const parts = String(token).split(/[:_]/);
-        const potentialId = parts[0];
-        if (potentialId && potentialId.startsWith('USR-')) {
+      // Token format is 'USR-000001_UUID' - split by first underscore to get id prefix
+      // e.g. 'USR-000001_abc-def' -> ['USR-000001', 'abc', 'def'] -> potentialId = 'USR-000001'
+      if (!matchedUser && token) {
+        // Find first segment that starts with USR- (handles both _ and : separators)
+        const tokenStr = String(token);
+        // Match USR-XXXXXX at start of token
+        const idMatch = tokenStr.match(/^(USR-\d+)/);
+        if (idMatch) {
+          const potentialId = idMatch[1];
           matchedUser = users.find(u => u.id === potentialId);
+          Logger.log('RBAC cache miss: matched by ID prefix: ' + potentialId + ' -> found: ' + !!matchedUser);
         }
       }
     }

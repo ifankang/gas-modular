@@ -41,6 +41,8 @@
 
 <script>
 var Table = (function() {
+  const TABLE_VERSION = 'v2026-09-25.3';
+  try { console.log('[Table] loaded', TABLE_VERSION); } catch (e) {}
   /**
    * config: {
    *   target: string, // container ID
@@ -55,7 +57,10 @@ var Table = (function() {
   function render(config) {
     const targetId = config.target || config.containerId;
     const container = document.getElementById(targetId);
-    if (!container) return;
+    if (!container) {
+      console.error('[Table.render] CONTAINER NOT FOUND for id:', targetId);
+      return;
+    }
     config.target = targetId;
     
     container.innerHTML = '';
@@ -325,7 +330,8 @@ var Table = (function() {
       }
       if (col.type === 'link') {
         const url = String(val).trim();
-        if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Pakai regex agar tidak ada raw '//' di dalam string literal
+        if (/^https?:/.test(url)) {
           return `
             <a href="${url}" target="_blank" class="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline bg-blue-50/60 hover:bg-blue-100/60 px-2 py-1 rounded border border-blue-200">
               <span>📸 Lihat Foto</span>
@@ -345,7 +351,8 @@ var Table = (function() {
       if (val === undefined || val === null || val === '') return '-';
       if (col.type === 'link') {
         const url = String(val).trim();
-        if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Pakai regex agar tidak ada raw '//' di dalam string literal
+        if (/^https?:/.test(url)) {
           return `<a href="${url}" target="_blank" class="text-blue-600 hover:underline">📸 Buka Link</a>`;
         }
         return val;

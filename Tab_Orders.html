@@ -1,7 +1,7 @@
 <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
   <div>
     <div class="flex items-center space-x-2">
-      <span class="text-xl">🛒</span>
+      <span class="text-xl"></span>
       <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Penjualan Toko (Sales Orders)</h1>
     </div>
     <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Pencatatan transaksi kasir/toko langsung ke pelanggan &bull; Stok gudang/toko langsung terpotong otomatis</p>
@@ -23,10 +23,10 @@
 <!-- Type Switcher Tabs (Default ke SALES agar SPG langsung fokus ke Penjualan) -->
 <div id="order-type-tabs" class="flex border-b border-slate-200 mb-4 space-x-6 text-sm">
   <button id="tab-btn-so" onclick="OrdersTab.switchType('SALES')" class="pb-2.5 font-bold text-emerald-600 border-b-2 border-emerald-600 transition-all flex items-center space-x-2">
-    <span>🛒 Riwayat Penjualan (Sales)</span>
+    <span> Riwayat Penjualan (Sales)</span>
   </button>
   <button id="tab-btn-po" onclick="OrdersTab.switchType('PURCHASE')" class="pb-2.5 font-semibold text-slate-500 hover:text-slate-800 transition-all flex items-center space-x-2">
-    <span>📥 Pengadaan Masuk (Purchase Orders)</span>
+    <span> Pengadaan Masuk (Purchase Orders)</span>
   </button>
 </div>
 
@@ -206,6 +206,18 @@ var OrdersTab = (function() {
     }
   }
 
+  /**
+   * Konversi URL Drive apa pun menjadi URL thumbnail yang andal dirender <img>.
+   * Format uc?export=view sering diblokir browser; thumbnail selalu jalan (untuk file ANYONE_WITH_LINK).
+   */
+  function toDriveThumb(url, width) {
+    const s = String(url || '');
+    const m = s.match(/[?&]id=([\w-]+)/) || s.match(/\/d\/([\w-]+)/) || s.match(/\/file\/d\/([\w-]+)/);
+    // Dibangun via concat agar tidak ada '//' raw di source (rawan dimakan transport GAS)
+    if (m) return 'https:/' + '/drive.google.com/thumbnail?id=' + m[1] + '&sz=w' + (width || 400);
+    return s;
+  }
+
   function openDetailModal(order) {
     if (typeof Loading !== 'undefined') Loading.show();
 
@@ -266,9 +278,9 @@ var OrdersTab = (function() {
 
             ${ord.attachment_url ? `
               <div class="border border-slate-200 rounded-lg p-3 bg-white">
-                <span class="text-xs font-bold text-slate-700 block mb-1.5">📸 Bukti Foto Struk / Nota / Transfer:</span>
+                <span class="text-xs font-bold text-slate-700 block mb-1.5"> Bukti Foto Struk / Nota / Transfer:</span>
                 <a href="${ord.attachment_url}" target="_blank" class="inline-block group relative rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-all">
-                  <img src="${ord.attachment_url}" alt="Bukti Penjualan" class="max-h-48 rounded object-cover" onerror="this.src=''; this.alt='Klik link untuk buka foto Drive';" />
+                  <img src="${toDriveThumb(ord.attachment_url, 400)}" alt="Bukti Penjualan (klik link bila tidak tampil)" class="max-h-48 rounded object-cover" onerror="this.style.display='none';" />
                   <span class="text-[11px] text-blue-600 block mt-1 hover:underline">Buka Foto Asli di Google Drive &rarr;</span>
                 </a>
               </div>
@@ -318,6 +330,8 @@ var OrdersTab = (function() {
   }
 
   function openOrderFormModal(type, title, whLabel) {
+    // Reset state foto agar tidak ada foto basi dari transaksi sebelumnya
+    window._selectedOrderPhoto = null;
     if (typeof Loading !== 'undefined') Loading.show();
 
     Promise.all([
@@ -370,10 +384,10 @@ var OrdersTab = (function() {
           <!-- Upload Foto Bukti Struk / Transfer Opsional -->
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
             <div class="flex items-center justify-between">
-              <label class="block font-bold text-slate-700">📸 Foto Bukti Struk / Transfer / Serah Terima (Opsional)</label>
+              <label class="block font-bold text-slate-700"> Foto Bukti Struk / Transfer / Serah Terima (Opsional)</label>
               <span class="text-[10px] text-slate-400">Kompresi Otomatis</span>
             </div>
-            <input type="file" id="order-photo-input" accept="image/*" capture="environment" onchange="OrdersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+            <input type="file" id="order-photo-input" accept="image&#47;*" capture="environment" onchange="OrdersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
             
             <!-- Thumbnail Preview Box -->
             <div id="order-photo-preview-box" class="hidden items-center space-x-3 pt-2">
@@ -412,7 +426,7 @@ var OrdersTab = (function() {
       window._orderPrdList = products.map(p => ({
         value: p.id,
         label: p.name,
-        sublabel: `${p.code || p.id} • Stok: ${p.stock || 0} ${p.unit || 'pcs'} • Rp ${(type === 'PURCHASE' ? (p.cost_price || p.price) : p.price).toLocaleString('id-ID')}`,
+        sublabel: `${p.code || p.id}  Stok: ${p.stock || 0} ${p.unit || 'pcs'}  Rp ${(type === 'PURCHASE' ? (p.cost_price || p.price) : p.price).toLocaleString('id-ID')}`,
         price: type === 'PURCHASE' ? (p.cost_price || p.price) : p.price,
         stock: p.stock || 0,
         unit: p.unit || 'pcs'
@@ -462,6 +476,11 @@ var OrdersTab = (function() {
             priceInput.value = selected.price;
           }
           recalcTotal();
+          // Fokus otomatis ke input Qty setelah barang dipilih
+          if (selected) {
+            const qtyInput = div.querySelector('.ord-item-qty');
+            if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+          }
         }
       });
     }
@@ -516,18 +535,24 @@ var OrdersTab = (function() {
 
     if (typeof Loading !== 'undefined') Loading.show();
 
-    // Async upload foto jika ada
+    // Async upload foto jika ada (NON-FATAL: kegagalan foto tidak membatalkan transaksi)
     (async function() {
       try {
         let uploadedPhotoUrl = '';
         if (window._selectedOrderPhoto && window._selectedOrderPhoto.base64Data) {
-          const uploadRes = await API.drive.uploadPhoto({
-            base64Data: window._selectedOrderPhoto.base64Data,
-            filename: `SO_${orderNo || Date.now()}_STRUK.jpg`,
-            category: 'Penjualan'
-          });
-          if (uploadRes) {
-            uploadedPhotoUrl = uploadRes.url || (uploadRes.data && uploadRes.data.url) || '';
+          try {
+            const uploadRes = await API.drive.uploadPhoto({
+              base64Data: window._selectedOrderPhoto.base64Data,
+              filename: `SO_${orderNo || Date.now()}_STRUK.jpg`,
+              category: 'Penjualan'
+            });
+            uploadedPhotoUrl = (uploadRes && uploadRes.url) || (uploadRes && uploadRes.data && uploadRes.data.url) || '';
+            if (!uploadedPhotoUrl) {
+              Toast.show('Foto tidak tersimpan: URL tidak diterima dari server.', 'warning');
+            }
+          } catch (upErr) {
+            console.error('Upload foto gagal (transaksi tetap disimpan):', upErr);
+            Toast.show('Foto gagal diunggah, transaksi tetap disimpan tanpa foto.', 'warning');
           }
         }
 
@@ -604,7 +629,6 @@ var OrdersTab = (function() {
     openCreatePurchaseModal: openCreatePurchaseModal,
     openCreateSalesModal: openCreateSalesModal,
     addItemRow: addItemRow,
-    onProductSelect: onProductSelect,
     recalcTotal: recalcTotal,
     handlePhotoSelected: handlePhotoSelected,
     clearSelectedPhoto: clearSelectedPhoto,

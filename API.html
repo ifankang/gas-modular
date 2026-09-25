@@ -31,11 +31,47 @@
         }
 
         google.script.run
-          .withSuccessHandler((response) => {
+          .withSuccessHandler((rawResponse) => {
+            // --- Normalisasi response GAS ---
+            // GAS (terutama via batchexec/op.exec) kadang mengirim hasil sebagai string JSON
+            // atau dibungkus envelope batch, bukan object murni {success, data, message}.
+            let response = rawResponse;
+            if (typeof response === 'string') {
+              try { response = JSON.parse(response); } catch (e) { /* biarkan */ }
+            }
+            if (response && !response.success && Array.isArray(response[0])) {
+              // Envelope batch: [["op.exec",[payload, ...]], ...]
+              try {
+                const inner = response[0][1];
+                const payload = Array.isArray(inner) ? inner[0] : inner;
+                if (typeof payload === 'string') {
+                  try { payload = JSON.parse(payload); } catch (e) {}
+                }
+                if (payload && typeof payload === 'object') response = payload;
+              } catch (e) { /* biarkan */ }
+            }
+
             if (response && response.success) {
               resolve(response.data);
             } else {
-              reject(new Error(response?.message || 'Unknown server error'));
+              const errMsg = response?.message || ('Unknown server error (raw: ' + JSON.stringify(response) + ')');
+              // Auto-logout if session is invalid or expired
+              const isSessionError = errMsg.includes('Sesi tidak valid') || 
+                                     errMsg.includes('kedaluwarsa') ||
+                                     errMsg.includes('login kembali');
+              if (isSessionError) {
+                localStorage.removeItem('gas_auth_user');
+                localStorage.removeItem('gas_active_tab');
+                if (typeof App !== 'undefined' && App.showLogin) {
+                  App.showLogin();
+                  if (typeof Toast !== 'undefined') {
+                    Toast.warning('Sesi Anda telah berakhir. Silakan login kembali.');
+                  }
+                } else {
+                  window.location.reload();
+                }
+              }
+              reject(new Error(errMsg));
             }
           })
           .withFailureHandler((error) => {

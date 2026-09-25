@@ -14,6 +14,44 @@ function doGet(e) {
     );
   }
 
+  // ===== TEMPORARY DIAGNOSTIC ROUTES (hapus setelah masalah selesai) =====
+  if (e && e.parameter && e.parameter.action === 'debug-ping') {
+    const diag = [
+      'ordersList=' + typeof ordersList,
+      'warehousesList=' + typeof warehousesList,
+      'productsList=' + typeof productsList,
+      'Response=' + typeof Response,
+      'RBAC=' + typeof RBAC,
+      'OrderService=' + typeof OrderService,
+      'Database=' + typeof Database,
+      'Repository=' + typeof Repository,
+      'Config=' + typeof Config
+    ].join('\n');
+    return HtmlService.createHtmlOutput('<pre style="font-family:monospace;padding:16px;">' + diag + '</pre>');
+  }
+
+  if (e && e.parameter && e.parameter.action === 'debug-orders') {
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = [];
+    try {
+      const rows = Database.findAll('Orders');
+      lines.push('1) Database.findAll(Orders): OK, rows=' + rows.length);
+      lines.push('   sample: ' + esc(JSON.stringify(rows[0] || null).slice(0, 400)));
+    } catch (err) {
+      lines.push('1) Database.findAll(Orders) FAIL: ' + esc(err.message));
+      lines.push('   stack: ' + esc(String(err.stack || '').slice(0, 600)));
+    }
+    try {
+      const data = OrderService.findAll('SALES');
+      lines.push('2) OrderService.findAll(SALES): OK, rows=' + data.length);
+    } catch (err) {
+      lines.push('2) OrderService.findAll(SALES) FAIL: ' + esc(err.message));
+      lines.push('   stack: ' + esc(String(err.stack || '').slice(0, 600)));
+    }
+    return HtmlService.createHtmlOutput('<pre style="font-family:monospace;padding:16px;white-space:pre-wrap;">' + lines.join('\n') + '</pre>');
+  }
+  // ===== END TEMPORARY DIAGNOSTIC ROUTES =====
+
   return HtmlService
     .createTemplateFromFile('Main')
     .evaluate()

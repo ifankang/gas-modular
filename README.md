@@ -19,56 +19,128 @@ Banyak proyek Google Apps Script tradisional berkembang menjadi tumpukan kode ya
 ### 2. 🔐 Autentikasi Database-Backed & SHA-256 Hashing
 - Dilengkapi sistem login mandiri (`04_Auth.gs` & `Page_Login.html`) yang tervalidasi langsung terhadap tabel `Users`.
 - Password dienkripsi menggunakan algoritma **SHA-256** (`Utilities.computeDigest`).
-- Sanitasi data ketat: field `password` otomatis dihapus sebelum data dikirimkan ke lapisan frontend (*zero password leakage*).
+- Sesi disimpan di `CacheService` (6 jam) dengan token `USR-XXXXXX_UUID`; kedaluwarsa otomatis memicu *auto-logout* di client.
 
-### 3. 🛡️ Role-Based Access Control (RBAC) Granular
-- Pembatasan akses pengguna berdasarkan **Domain/Tab** (`users`, `products`, `orders`) dan **Aksi CRUD** (`read`, `create`, `edit`, `delete`).
+### 3. 🛡️ Role-Based Access Control (RBAC Granular)
+- Pembatasan akses pengguna berdasarkan **Domain/Tab** (`users`, `products`, `orders`, dst.) dan **Aksi CRUD** (`read`, `create`, `edit`, `delete`, `approve`, `receive`).
 - **End-to-End Security:** Otorisasi diverifikasi ganda di sisi backend oleh `05_RBAC.gs` dan di sisi client (`Auth.can(resource, action)`).
-- **Predefined Roles & Custom Override:**
-  - **Admin:** Akses penuh tanpa batas.
-  - **Manager:** Full CRUD produk/order, read-only pada user.
-  - **Staff:** Read, create, edit produk/order (dilarang delete, tab user tersembunyi).
-  - **Viewer:** Read-only produk/order (dilarang create/edit/delete, tab user tersembunyi).
-  - **Custom:** Override JSON hak akses per pengguna secara fleksibel.
-- **UI Adaptif:** Navigasi tab terlarang otomatis disembunyikan dari sidebar desktop dan bottom bar mobile, tombol tambah/FAB dan aksi tabel menyesuaikan izin secara dinamis.
+- **Dynamic Roles:** Definisi peran dibaca dari sheet `Roles` (dapat diubah dari UI **Peran & Izin**), dengan fallback ke matriks statis `Config.ROLES` (admin, manager, staff, spg, viewer).
+- **UI Adaptif:** Navigasi tab terlarang otomatis disembunyikan, tombol tambah/FAB dan aksi tabel menyesuaikan izin secara dinamis.
 
+### 4. 📱 Thoughtful Mobile-First Responsive UI/UX
+- **Dual Navigation:** Desktop menggunakan sidebar samping, smartphone menggunakan *Bottom Navigation Bar*.
+- **Adaptive Modal / Bottom-Sheet:** Formulir muncul sebagai modal dialog di desktop dan *slide-up bottom-sheet* di mobile.
+- **Dual-Mode Table/Card View:** Tabel di desktop, kartu bersih di ponsel.
+- **Fast-Input Ergonomics:** Auto-focus ke field pertama saat form dibuka, **auto-focus ke Qty setelah barang dipilih di combobox** (cursor langsung siap ketik), dan tombol sentuh nyaman.
 
-### 3. 📱 Thoughtful Mobile-First Responsive UI/UX
-Didesain khusus untuk operasional cepat di lapangan menggunakan smartphone maupun di kantor menggunakan desktop:
-- **Dual Navigation:** Desktop menggunakan sidebar samping yang dapat di-collapse, smartphone menggunakan *Bottom Navigation Bar* yang mudah dijangkau jempol.
-- **Adaptive Modal / Bottom-Sheet:** Formulir muncul sebagai modal dialog terpusat di desktop, dan otomatis berubah menjadi *slide-up bottom-sheet* ergonomis di mobile.
-- **Dual-Mode Table/Card View:** Tampilan data otomatis beradaptasi menjadi tabel spreadsheet di layar desktop dan menjadi kartu (*card view*) yang bersih di layar ponsel.
-- **Mobile Floating Action Button (FAB):** Tombol aksi melayang di sudut kanan bawah layar mobile untuk menambah data seketika tanpa harus scroll ke atas.
-- **Fast-Input Ergonomics:** Auto-focus pada field input pertama saat formulir dibuka, keyboard virtual adaptif (`inputmode="numeric"`, `email`), ukuran tombol sentuh nyaman ($\ge 44\text{px}$), dan font anti-zoom otomatis di browser iOS/Safari.
+### 5. 📐 Schema sebagai Single Source of Truth
+Cukup definisikan struktur data sekali dalam satu objek `Schema` (`01_Schema.gs` backend + `01_Schema_Frontend.html` frontend). Schema mengontrol kolom tabel, badge status, pencarian, sorting, form dinamis, prefix ID, dan mapping header spreadsheet.
 
-### 4. 📐 Schema sebagai Single Source of Truth
-Cukup definisikan struktur data Anda sekali dalam satu objek `Schema`. Schema tersebut otomatis mengontrol:
-- **Tampilan Tabel & Card:** Kolom yang ditampilkan, badge warna status, kolom yang dapat dicari (*searchable*), dan diurutkan (*sortable*).
-- **Formulir Dinamis:** Tipe input (text, number, email, select, textarea), validasi required, dan opsi dropdown.
-- **Backend Database:** Mapping baris spreadsheet, prefix ID otomatis, dan timestamps.
+### 6. 🔁 Generic Reusable CRUD (High Leverage)
+Satu generic **Repository** (`11_Repository.gs`) dan **Database Engine** (`10_Database.gs`) melayani semua entitas. Modul spesifik per entitas (`OrderRepository`, dst.) hanya berisi perilaku khusus.
 
-### 5. 🔁 Generic Reusable CRUD (High Leverage)
-Anda tidak perlu lagi menulis fungsi `findAll`, `findById`, `create`, `update`, dan `delete` yang sama berulang kali untuk setiap entitas (`Users`, `Products`, `Orders`, dll.). Semua entitas memanfaatkan satu generic **Repository** dan **Database Engine**.
+### 7. 📦 Modul Bisnis Siap Pakai
+- **Penjualan & Pengadaan (Sales/Purchase Order):** Alur lengkap SO (potong stok otomatis + mutasi OUT) dan PO (Draft → Approved → Shipped → Received, stok masuk otomatis).
+- **Permintaan Barang Antar-Gudang (Stock Transfers):** Alur 4-langkah — SPG mengajukan → Admin review qty → Picker kirim (potong stok asal) → Toko terima (tambah stok tujuan), lengkap dengan audit kuantitas per-langkah.
+- **Ledger Mutasi Stok:** Semua pergerakan IN/OUT/TRANSFER/ADJUSTMENT tercatat di `StockMutations`.
+- **Laporan Bisnis:** Kartu stok, valuasi stok, rekap pembelian, penjualan, dan transfer (`90_ReportService.gs`).
+- **Upload Bukti Foto ke Google Drive:** Kompresi otomatis di client (`ImageCompressor`), upload base64 ke Drive terstruktur per-kategori (`06_DriveService.gs`), upload bersifat *non-fatal* — kegagalan foto tidak membatalkan transaksi.
 
-### 6. 🛡️ Resilient Header Mapping (Bebas Hardcode Index)
-Modul database tidak pernah mengasumsikan koordinat kolom tetap seperti `row[0]`, `row[1]`. Pembacaan dan penulisan baris dilakukan secara dinamis berdasarkan nama *Header* Spreadsheet. Jika suatu saat urutan kolom di Spreadsheet diubah oleh admin, aplikasi **tidak akan rusak**.
+### 8. 🔒 Concurrency Protection Terpusat
+`LockService` terpusat pada operasi penulisan, pembaruan, pembuatan ID unik, dan **validasi-potong stok** (mencegah oversell saat transaksi bersamaan).
 
-### 7. 🔒 Concurrency Protection Terpusat
-Menggunakan `LockService` terpusat pada operasi penulisan, pembaruan, dan pembuatan ID unik otomatis (`USR-000001`, `PRD-000001`). Mencegah terjadinya *race condition* dan duplikasi ID saat banyak pengguna menyimpan data bersamaan.
-
-### 8. 🚀 Modern Promise-Based API Adapter
-Bebas dari sintaks *callback hell* `google.script.run.withSuccessHandler()`. Frontend menggunakan adapter modern berbasis Promise:
+### 9. 🚀 Modern Promise-Based API Adapter dengan Normalisasi Respons
+Bebas dari *callback hell*, plus tahan benci terhadap variasi format respons GAS:
 ```javascript
-// Bersih, ringkas, dan modern
 const users = await API.users.list();
 await API.users.create(newUserData);
 ```
+`API.html` secara otomatis menormalkan respons yang datang sebagai **string JSON** atau **envelope batch** (`[["op.exec",[...]]]`) sebelum diproses — sehingga data valid tidak pernah salah dikira error.
 
-### 9. 🤖 AI Coding Agent Optimized
-Dilengkapi dengan file panduan ketat [AGENTS.md](AGENTS.md) dan [.cursorrules](.cursorrules). AI Assistant (seperti Gemini, Claude, Antigravity, Cursor) dapat menavigasi kode, menambah modul baru, dan melakukan maintenance tanpa merusak arsitektur framework.
+### 10. 🤖 AI Coding Agent Optimized
+Dilengkapi panduan ketat [AGENTS.md](AGENTS.md) dan [.cursorrules](.cursorrules) untuk AI Assistant (Claude, Cursor, dll).
 
-### 10. 🪶 Zero Heavy Build Dependencies
-Tanpa React, Vue, NPM build tools, Webpack, atau TypeScript compilation. Menggunakan **HTML5, Tailwind CSS via CDN, dan Vanilla JavaScript modern (ES6+)**. Cepat dimuat, ringan, dan langsung berjalan natively di infrastruktur Google Apps Script.
+### 11. 🪶 Zero Heavy Build Dependencies
+Tanpa React, Vue, NPM build tools, atau TypeScript compilation. HTML5 + Tailwind CDN + Vanilla JS (ES6+) yang berjalan native di GAS.
+
+---
+
+## ⚠️ KRITIS: Gotcha Environment Google Apps Script
+
+Bagian ini adalah hasil *hard-earned debugging* — **wajib dibaca** sebelum mengedit kode frontend.
+
+### 1. 🚫 DILARANG `//` atau `/*` raw di dalam string literal JS (file HTML client)
+
+Lapisan transport/template GAS dapat **men-strip komentar JavaScript** dari kode yang dikirim ke browser. Akibatnya:
+
+| Pola di source | Yang diterima browser | Gejala |
+|---|---|---|
+| `'https://drive.google.com'` | `'https:` (string putus) | `SyntaxError: Invalid or unexpected token`, seluruh blok `<script>` tab mati |
+| `accept="image/*"` di template literal | `accept="image` lalu kode berikutnya dimakan | `Unexpected identifier`, form rusak |
+
+**Aturan pengganti yang aman:**
+
+```javascript
+// ❌ JANGAN — raw double slash di string
+if (url.startsWith('https://')) { ... }
+const thumb = `https://drive.google.com/thumbnail?id=${id}`;
+
+// ✅ GUNAKAN — regex (tidak ada // kontigu)
+if (/^https?:/.test(url)) { ... }
+
+// ✅ GUNAKAN — concat, // hanya terbentuk saat runtime
+const thumb = 'https:/' + '/drive.google.com/thumbnail?id=' + id;
+
+// ❌ JANGAN — image/* di dalam template literal HTML
+<input accept="image/*" ...>
+
+// ✅ GUNAKAN — HTML entity &#47; (= / bagi browser, aman di source)
+<input accept="image&#47;*" ...>
+```
+
+Cara cepat memburu pelanggaran:
+```bash
+grep -rn "://" Tab_*.html Component_*.html | grep -v "xmlns"
+grep -rn 'image/\*' Tab_*.html Component_*.html
+```
+
+### 2. 🚫 DILARANG memanggil `SpreadsheetApp` langsung di luar `10_Database.gs`
+Akan merusak sinkronisasi RAM cache → *stale data*.
+
+### 3. 🚫 DILARANG membuat komentar HTML `<?!= include(...) ?>`
+Server template GAS mengevaluasinya bahkan di dalam komentar → crash.
+
+---
+
+## 🚢 Workflow Deploy (clasp) — Ikuti Persis
+
+```bash
+# 1. Push KODE dengan -f (WAJIB)
+clasp push -f
+```
+
+> ⚠️ **`clasp push` biasa bisa diam-diam "Skipping push."** padahal file berubah (bug timestamp/daftar file). Selalu pakai **`clasp push -f`** dan tidak percaya output "Skipping".
+
+```bash
+# 2. Redeploy deployment AKTIF tanpa mengubah URL
+clasp deploy -i "AKfycb...(deployment ID yang aktif)" -d "deskripsi perubahan"
+```
+
+**Aturan penting deployment:**
+- **Deployment GAS bersifat *pinned* (immutable).** Push baru TIDAK mengubah kode deployment lama. Editor Apps Script selalu menampilkan kode terbaru — itu bisa menipu; yang dijalankan browser adalah snapshot deployment dari URL yang dibuka.
+- Satu project boleh punya banyak deployment dengan kode berbeda-beda. **URL lama = kode lama, selamanya.** Jangan pernah mengira "sudah push" berarti "semua URL sudah baru".
+- Redeploy dengan `-i <ID>` memakai URL yang sama (aman jika manifest `appsscript.json` tidak berubah tipe). Jika manifest berubah → buat deployment baru.
+- **Simpan deployment ID aktif** (yang URL-nya dibagikan ke pengguna) dan selalu redeploy ke ID itu.
+
+**Verifikasi versi yang berjalan di browser:**
+Buka Console (F12) — aplikasi mencetak penanda build:
+```
+App Initializing... | BUILD: 2026-09-25.4
+[Table] loaded v2026-09-25.3
+```
+Jika marker tidak muncul → browser menjalankan versi lama (cache / URL deployment lama). Tes dengan **Incognito** + URL deployment aktif.
+
+**Hard refresh** (Ctrl+Shift+R) selalu dilakukan setelah deploy.
 
 ---
 
@@ -90,22 +162,19 @@ Database (Spreadsheet Adapter, Header Mapping, Concurrency Lock, RAM Caching)
     ├── CacheService (In-Memory RAM Cache: 5ms read latency, Auto-Invalidation)
     │
     ▼
-Google Spreadsheet (Tab Users, Products, dll)
-```
+Google Spreadsheet (Users, Products, Orders, StockTransfers, dst)
 
-```text
 Frontend Layer:
 Main.html (Shell, Desktop Sidebar & Mobile Bottom Navigation)
     │
     ├── Page_Login.html (Authentication Screen)
     │
-    ├── Page Tabs (Tab_Dashboard, Tab_Users, Tab_Products)
-    │       │
+    ├── Page Tabs (Dashboard, Users, Products, Orders, Transfers, dst)
     │       ├── Generic Table (Dual-Mode: Table Desktop & Card View Mobile)
-    │       ├── Generic Form (Adaptive Modal & Mobile Bottom-Sheet)
-    │       └── Mobile FAB (Floating Action Button) & Search Filter
+    │       ├── Generic Form / Modal (Adaptive + Bottom-Sheet Mobile)
+    │       └── Generic Combobox (Searchable dropdown untuk pilih produk)
     │
-    └── API Adapter (Promise wrapper untuk google.script.run)
+    └── API Adapter (Promise wrapper + normalisasi respons batch GAS)
 ```
 
 ---
@@ -115,47 +184,85 @@ Main.html (Shell, Desktop Sidebar & Mobile Bottom Navigation)
 ```text
 ├── PRD.md                       # Dokumen spesifikasi kebutuhan arsitektur
 ├── AGENTS.md                    # Panduan & aturan baku untuk AI Coding Agent
-├── .cursorrules                 # Instruksi otomatis untuk AI IDE (Cursor/Antigravity)
+├── .cursorrules                 # Instruksi otomatis untuk AI IDE
 ├── appsscript.json              # Manifest GAS (Web App & V8 Runtime)
 │
-├── 00_Config.gs                 # Konfigurasi global, Spreadsheet ID, Cache & Auth
-├── 01_App.gs                    # Entry point doGet(e) & template include() helper
-├── 01_Schema.gs                 # Definisi Schema Backend (UserSchema, ProductSchema)
-├── 02_Response.gs               # Standardisasi payload respon (success, data, errors)
+├── 00_Config.gs                 # Konfigurasi global, Spreadsheet ID, Cache, Roles matriks, RBAC
+├── 01_App.gs                    # Entry point doGet(e) + include() helper
+├── 01_Schema.gs                 # Definisi Schema Backend (semua entitas)
+├── 02_Response.gs               # Standardisasi payload respon (success, data, message)
 ├── 03_Utils.gs                  # Utility helpers (generateId, timestamps, hashPassword)
-├── 04_Auth.gs                   # Backend Authentication service (Login, Verify, Session)
-├── 05_RBAC.gs                   # RBAC Engine (Authorization, Role Matrix, Session Guard)
-├── 10_Database.gs               # Spreadsheet Engine, Header Mapping, Lock & Cache RAM
-├── 11_Repository.gs             # Generic CRUD repository
+├── 04_Auth.gs                   # Authentication service (login, SHA-256, session token)
+├── 05_RBAC.gs                   # RBAC Engine (sesi, izin dinamis dari sheet Roles)
+├── 06_DriveService.gs           # Upload bukti foto base64 ke Google Drive per-kategori
+│
+├── 10_Database.gs               # Spreadsheet Engine, Header Mapping, Lock & RAM Cache
+├── 11_Repository.gs             # Generic CRUD repository (ID auto, timestamps)
 ├── 12_Validator.gs              # Centralized server-side validation
 │
 ├── 20_UserRepository.gs         # User Data Access
-├── 21_UserService.gs            # User Business Workflow (Auto-hash password)
+├── 21_UserService.gs            # User Business Workflow (auto-hash password)
 ├── 22_UserController.gs         # User Server Endpoints
 │
 ├── 30_ProductRepository.gs      # Product Data Access
 ├── 31_ProductService.gs         # Product Business Workflow
 ├── 32_ProductController.gs      # Product Server Endpoints
-├── 99_Seed.gs                   # Seeder otomatis untuk inisialisasi sheet & data awal
 │
-├── Main.html                    # Kerangka utama aplikasi (Responsive App Shell)
-├── Styles.html                  # Styling global, Responsive Media Queries & Tailwind
-├── Scripts.html                 # Routing tab & inisialisasi aplikasi
-├── API.html                     # Frontend Promise Adapter
-├── Page_Login.html              # Antarmuka Halaman Login responsif
-├── 01_Schema_Frontend.html      # Schema Frontend (Single Source of Truth)
+├── 51_RoleService.gs            # Role & Permission Workflow
+├── 52_RoleController.gs         # Role Server Endpoints
 │
-├── Component_Table.html         # Komponen Tabel generik (Desktop Table + Mobile Cards)
-├── Component_Form.html          # Komponen Form generik (Fast-Input UX)
-├── Component_Modal.html         # Komponen Modal (Desktop Dialog + Mobile Bottom-Sheet)
-├── Component_Pagination.html    # Komponen Pagination dinamis
-├── Component_Toast.html         # Komponen Notifikasi Toast interaktif
-├── Component_Loading.html       # Komponen Spinner loading
-├── Component_PageHeader.html    # Komponen Header halaman
+├── 60_CategoryRepository.gs     # Category Data Access
+├── 61_CategoryService.gs        # Category Business Workflow
+├── 62_CategoryController.gs     # Category Server Endpoints
 │
-├── Tab_Dashboard.html           # Halaman Dashboard
-├── Tab_Users.html               # Halaman Manajemen Users (dengan Mobile FAB)
-└── Tab_Products.html            # Halaman Manajemen Products (dengan Mobile FAB)
+├── 70_WarehouseRepository.gs    # Warehouse Data Access
+├── 71_WarehouseService.gs       # Warehouse Business Workflow
+├── 72_WarehouseController.gs    # Warehouse Server Endpoints
+│
+├── 75_StockService.gs           # Saldo stok per gudang/produk (getBalance, setBalance)
+├── 75_StockController.gs        # Stock Server Endpoints
+├── 76_StockTransferRepository.gs# StockTransfers + TransferItems Data Access
+├── 77_InventoryService.gs       # Alur 4-langkah permintaan barang & mutasi stok atomik
+├── 78_StockTransferController.gs# Transfer Server Endpoints
+│
+├── 80_OrderRepository.gs        # Orders + OrderItems Data Access
+├── 81_OrderService.gs           # Alur Sales Order & Purchase Order (stok atomik + Lock)
+├── 82_OrderController.gs        # Order Server Endpoints
+│
+├── 90_ReportService.gs          # Laporan: kartu stok, valuasi, pembelian, penjualan, transfer
+├── 91_ReportController.gs       # Report Server Endpoints
+│
+├── 99_Seed.gs                   # Seeder otomatis (semua sheet + data demo + akun)
+│
+├── Main.html                    # Kerangka utama (Responsive App Shell)
+├── Styles.html                  # Styling global, responsive utilities & Tailwind
+├── Scripts.html                 # App object: routing tab, RBAC UI, ImageCompressor
+├── API.html                     # Promise Adapter + normalisasi respons batch GAS
+├── Page_Login.html              # Halaman Login responsif
+├── 01_Schema_Frontend.html      # Schema Frontend (Single Source of Truth UI)
+│
+├── Component_Table.html         # Tabel generik (desktop table + mobile cards, search, sort)
+├── Component_Form.html          # Form generik (fast-input UX)
+├── Component_Modal.html         # Modal (desktop dialog + mobile bottom-sheet)
+├── Component_Combobox.html      # Searchable dropdown dengan navigasi keyboard
+├── Component_Pagination.html    # Pagination dinamis
+├── Component_Toast.html         # Notifikasi Toast
+├── Component_Loading.html       # Spinner loading
+├── Component_PageHeader.html    # Header halaman
+│
+├── Tab_Dashboard.html           # Dashboard ringkasan bisnis
+├── Tab_Users.html               # Manajemen Users
+├── Tab_Products.html            # Manajemen Products
+├── Tab_Categories.html          # Manajemen Kategori
+├── Tab_Warehouses.html          # Manajemen Gudang/Toko
+├── Tab_Orders.html              # Penjualan (SO) & Pengadaan (PO) + upload struk
+├── Tab_StockTransfers.html      # Permintaan barang 4-langkah + upload foto bukti
+├── Tab_StockMutations.html      # Ledger mutasi stok
+├── Tab_Reports.html             # Laporan bisnis
+├── Tab_Roles.html               # Peran & Izin (RBAC editor)
+│
+├── bundled_test.html            # Bundle dev lokal (generated; JANGAN edit manual)
+└── architecture.html            # Dokumentasi arsitektur visual (bukan bagian app)
 ```
 
 ---
@@ -163,8 +270,8 @@ Main.html (Shell, Desktop Sidebar & Mobile Bottom Navigation)
 ## 🚀 Panduan Memulai Cepat
 
 ### 1. Prasyarat
-- [Node.js](https://nodejs.org/) terinstal di komputer Anda.
-- Google Apps Script CLI (`@google/clasp`) terinstal global:
+- [Node.js](https://nodejs.org/) terinstal.
+- Google Apps Script CLI:
   ```bash
   npm install -g @google/clasp
   ```
@@ -172,83 +279,87 @@ Main.html (Shell, Desktop Sidebar & Mobile Bottom Navigation)
 
 ### 2. Login & Hubungkan Proyek
 ```bash
-# 1. Login ke akun Google Anda
 clasp login
-
-# 2. Clone atau hubungkan ke script project Anda
-clasp clone "<SCRIPT_ID>"
-# atau buat proyek baru:
-# clasp create --type webapp --title "My Modular App"
-
-# 3. Push file lokal ke Google Apps Script
-clasp push
+clasp clone "<SCRIPT_ID>"     # atau clasp create --type webapp
 ```
 
-### 3. Konfigurasi Spreadsheet & Pengaturan
-Buka file `00_Config.gs` dan sesuaikan ID Google Spreadsheet Anda:
+### 3. Konfigurasi (`00_Config.gs`)
 ```javascript
 const Config = {
   APP_NAME: "GAS Modular CRUD",
   SPREADSHEET_ID: "MASUKKAN_ID_SPREADSHEET_ANDA",
-  PAGINATION: {
-    DEFAULT_PAGE_SIZE: 10
-  },
+  PAGINATION: { DEFAULT_PAGE_SIZE: 10 },
   CACHE: {
-    ENABLED: true,       // Aktifkan RAM caching untuk performa tinggi
-    TTL_SECONDS: 300     // Durasi cache (5 menit)
+    ENABLED: true,
+    TTL_SECONDS: 300
   },
   AUTH: {
-    ENABLED: true,
-    SESSION_KEY: 'gas_session_user'
-  }
+    DEFAULT_ADMIN: {
+      email: "admin@databridge.com",
+      password: "admin2026123",
+      name: "Super Admin",
+      role: "admin"
+    }
+  },
+  ROLES: { /* matriks fallback: admin, manager, staff, spg, viewer */ },
+  RBAC: { ENABLED: true }
 };
 ```
 
 ### 4. Inisialisasi Database (Seeder)
-Jalankan fungsi `seedDatabase()` langsung dari Editor Google Apps Script, atau buka Web App dengan parameter `?action=seed`:
+Jalankan `seedDatabase()` dari Editor GAS, atau buka:
 ```text
 https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?action=seed
 ```
-
-Seeder akan secara otomatis:
-1. Membuat tab `Users` dan `Products` jika belum ada.
-2. Memastikan seluruh header kolom lengkap (termasuk kolom `password`, `role`, dan `permissions`).
-3. Mendaftarkan 4 akun pengguna demo dengan tingkatan hak akses RBAC berbeda:
-   - **Administrator (`admin`):** `admin@databridge.com` / `admin2026123` (Full Access)
-   - **Manager (`manager`):** `manager@example.com` / `manager123` (Full CRUD Produk & Orders, Read Users)
-   - **Staff (`staff`):** `staff@example.com` / `staff123` (Read, Create, Edit Produk & Orders)
-   - **Viewer (`viewer`):** `viewer@example.com` / `viewer123` (Read Only Produk & Orders)
+Seeder membuat & memverifikasi semua sheet (`Users`, `Products`, `Roles`, `Categories`, `Warehouses`, `Stocks`, `StockTransfers`, `TransferItems`, `StockMutations`, `Orders`, `OrderItems`) lengkap dengan header dan data demo. Akun administrator: `admin@databridge.com` / `admin2026123`.
 
 ### 5. Deploy Sebagai Web App
 ```bash
-clasp deploy --description "Production Release"
+clasp push -f
+clasp deploy -d "Production Release"
 ```
-Buka URL Web App yang dihasilkan, lalu login menggunakan kredensial administrator di atas.
+> Simpan deployment ID yang dihasilkan — itu ID yang akan selalu Anda redeploy dengan `-i` agar URL tetap sama. Lihat bagian [Workflow Deploy](#-workflow-deploy-clasp--ikuti-persis).
 
 ---
 
-## ➕ Protokol Menambah Entitas Baru (Misal: Orders)
+## ➕ Protokol Menambah Entitas Baru
 
-Berkat arsitektur framework ini, Anda hanya perlu mengikuti 5 langkah terisolasi (sesuai panduan [AGENTS.md](AGENTS.md)):
+Contoh aktual dari repo ini (entitas Orders memakai blok 80-an):
 
-1. **Definisikan Schema:**
-   - Tambahkan `OrderSchema` di `01_Schema.gs` (backend) dan `01_Schema_Frontend.html` (frontend).
-2. **Buat Service & Controller Backend:**
-   - `41_OrderService.gs`: Memanggil generic `Repository.findAll(OrderSchema)`, `Repository.create(OrderSchema, data)`, dll.
-   - `42_OrderController.gs`: Membuat fungsi global `ordersList()`, `ordersCreate()`, dll., dibungkus dengan `Response.success()`.
-3. **Daftarkan ke API Adapter (`API.html`):**
+1. **Definisikan Schema** di `01_Schema.gs` (backend) dan `01_Schema_Frontend.html` (frontend) — identik keduanya.
+2. **Buat lapisan backend:**
+   - `80_OrderRepository.gs` — hanya jika ada perilaku khusus di luar generic Repository.
+   - `81_OrderService.gs` — business logic; panggil `Repository.findAll(OrderSchema)`, dst.
+   - `82_OrderController.gs` — endpoint global `ordersList()`, dst., dibungkus `try-catch` + `Response.success()/error()`.
+3. **Daftarkan ke `API.html`:**
    ```javascript
    orders: {
-     list: () => API.call('ordersList'),
-     create: (data) => API.call('ordersCreate', data),
-     update: (id, data) => API.call('ordersUpdate', id, data),
-     delete: (id) => API.call('ordersDelete', id)
+     list: (type) => API.call('ordersList', type),
+     get: (id) => API.call('ordersGet', id),
+     create: (payload) => API.call('ordersCreateSales', payload)
    }
    ```
-4. **Buat Tab Frontend (`Tab_Orders.html`):**
-   - Buat file tab yang memanggil `Component_Table` dan `Component_Form` berdasarkan `OrderSchema`.
-   - Pasang tombol navigasi dan container tab di `Main.html`.
-5. **Tambahkan Seeder di `99_Seed.gs`:**
-   - Inisialisasi sheet `Orders` lengkap dengan header kolom dan data awal.
+4. **Buat `Tab_Orders.html`** — pakai `Table.render()` berbasis `OrderSchema.columns`, ekspos `window.initOrdersTab`, lalu pasang nav + container di `Main.html`.
+5. **Tambahkan seeder** di `99_Seed.gs` (header sheet + data sampel).
 
-Selesai! Entitas baru otomatis memiliki fitur CRUD lengkap, caching transparan, auto-focus form, mobile card view, pencarian live, sorting, dan pagination tanpa menulis ulang kode database.
+**Checklist sebelum selesai** (wajib):
+- [ ] Syntax check semua blok `<script>` (lihat perintah di bawah) dan `node --check` untuk `.gs`.
+- [ ] Tidak ada `//` atau `/*` raw di string literal JS file client.
+- [ ] `clasp push -f` (bukan push biasa) → **verifikasi via `clasp pull`** bahwa isi server = lokal.
+- [ ] Redeploy ke deployment ID aktif, hard refresh, cek marker BUILD di console.
+- [ ] Cache ter-invalidate otomatis, timestamps terisi, ID ber-prefix benar.
+
+**Syntax check cepat semua blok script HTML:**
+```bash
+node -e "
+const fs=require('fs');
+for(const f of fs.readdirSync('.').filter(x=>x.endsWith('.html'))){
+  const html=fs.readFileSync(f,'utf8');
+  const re=/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi;
+  let m,i=0;
+  while((m=re.exec(html))){i++;
+    try{ new Function(m[1]); }
+    catch(e){ console.log('FAIL',f,'#'+i,e.message); }
+  }
+}"
+```

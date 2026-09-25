@@ -91,6 +91,7 @@ const OrderService = {
       received_by: '',
       received_at: '',
       notes: orderData.notes || '',
+      attachment_url: orderData.attachment_url || '',
       created_by: user.name || user.email || 'Admin'
     };
 

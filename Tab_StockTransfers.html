@@ -1,7 +1,7 @@
 <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
   <div>
     <div class="flex items-center space-x-2">
-      <span class="text-xl">📦</span>
+      <span class="text-xl"></span>
       <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Permintaan Barang & Pindah Gudang</h1>
     </div>
     <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Alur 4-Langkah: SPG Minta &bull; Admin Review Qty &bull; Picker Kirim Fisik &bull; SPG Cek & Terima Barang</p>
@@ -14,9 +14,9 @@
 </div>
 
 <!-- Mobile Floating Action Button (FAB) -->
-<button 
+<button
   id="fab-add-transfer"
-  onclick="StockTransfersTab.openCreateModal()" 
+  onclick="StockTransfersTab.openCreateModal()"
   class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
   title="Ajukan Permintaan Cepat"
 >
@@ -147,6 +147,17 @@ var StockTransfersTab = (function() {
   }
 
   /**
+   * Konversi URL Drive apa pun menjadi URL thumbnail yang andal dirender <img>.
+   */
+  function toDriveThumb(url, width) {
+    const s = String(url || '');
+    const m = s.match(/[?&]id=([\w-]+)/) || s.match(/\/d\/([\w-]+)/) || s.match(/\/file\/d\/([\w-]+)/);
+    // Dibangun via concat agar tidak ada '//' raw di source (rawan dimakan transport GAS)
+    if (m) return 'https:/' + '/drive.google.com/thumbnail?id=' + m[1] + '&sz=w' + (width || 400);
+    return s;
+  }
+
+  /**
    * MODAL DETAIL KOMPREHENSIF (Menampilkan audit 4 kolom dan bukti foto)
    */
   function openDetailModal(transfer) {
@@ -214,19 +225,19 @@ var StockTransfersTab = (function() {
 
             <!-- Log Catatan Alur -->
             <div class="bg-amber-50/50 border border-amber-100 p-3 rounded-lg text-xs space-y-1 text-slate-700">
-              ${t.requested_by ? `<div>📝 Diajukan oleh: <b>${t.requested_by}</b> (${t.requested_at || t.created_at || '-'})</div>` : ''}
-              ${t.approved_by ? `<div>⚖️ Disetujui oleh: <b>${t.approved_by}</b> (${t.approved_at || '-'})</div>` : ''}
-              ${t.shipped_by ? `<div>📦 Dikirim oleh (Picker): <b>${t.shipped_by}</b> (${t.shipped_at || '-'})</div>` : ''}
-              ${t.received_by ? `<div>✅ Diterima oleh: <b>${t.received_by}</b> (${t.received_at || '-'})</div>` : ''}
+              ${t.requested_by ? `<div> Diajukan oleh: <b>${t.requested_by}</b> (${t.requested_at || t.created_at || '-'})</div>` : ''}
+              ${t.approved_by ? `<div> Disetujui oleh: <b>${t.approved_by}</b> (${t.approved_at || '-'})</div>` : ''}
+              ${t.shipped_by ? `<div> Dikirim oleh (Picker): <b>${t.shipped_by}</b> (${t.shipped_at || '-'})</div>` : ''}
+              ${t.received_by ? `<div> Diterima oleh: <b>${t.received_by}</b> (${t.received_at || '-'})</div>` : ''}
               ${t.notes ? `<div class="pt-1.5 border-t border-amber-200/60 text-slate-600"><b>Catatan:</b><br/>${t.notes.replace(/\n/g, '<br/>')}</div>` : ''}
             </div>
 
             <!-- Bukti Foto jika ada -->
             ${t.attachment_url ? `
               <div class="border border-slate-200 rounded-lg p-3 bg-white">
-                <span class="text-xs font-bold text-slate-700 block mb-2">📸 Bukti Foto Penerimaan / Kondisi Barang:</span>
+                <span class="text-xs font-bold text-slate-700 block mb-2"> Bukti Foto Penerimaan / Kondisi Barang:</span>
                 <a href="${t.attachment_url}" target="_blank" class="inline-block group relative rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-all">
-                  <img src="${t.attachment_url}" alt="Bukti Foto" class="max-h-48 rounded object-cover" onerror="this.src=''; this.alt='Klik link untuk buka foto Drive';" />
+                  <img src="${toDriveThumb(t.attachment_url, 400)}" alt="Bukti Foto (klik link bila tidak tampil)" class="max-h-48 rounded object-cover" onerror="this.style.display='none';" />
                   <span class="text-[11px] text-blue-600 block mt-1 hover:underline">Buka Foto Asli di Google Drive &rarr;</span>
                 </a>
               </div>
@@ -299,7 +310,7 @@ var StockTransfersTab = (function() {
         }).join('');
 
         const modalBody = Modal.create({
-          title: `⚖️ Review & Setujui Permintaan: ${t.transfer_no || t.id}`,
+          title: ` Review & Setujui Permintaan: ${t.transfer_no || t.id}`,
           onClose: () => {}
         });
 
@@ -392,7 +403,7 @@ var StockTransfersTab = (function() {
         }).join('');
 
         const modalBody = Modal.create({
-          title: `📦 Kemas & Kirim Barang: ${t.transfer_no || t.id}`,
+          title: ` Kemas & Kirim Barang: ${t.transfer_no || t.id}`,
           onClose: () => {}
         });
 
@@ -487,7 +498,7 @@ var StockTransfersTab = (function() {
         }).join('');
 
         const modalBody = Modal.create({
-          title: `🔍 Verifikasi Fisik & Terima Barang: ${t.transfer_no || t.id}`,
+          title: ` Verifikasi Fisik & Terima Barang: ${t.transfer_no || t.id}`,
           onClose: () => {}
         });
 
@@ -501,11 +512,11 @@ var StockTransfersTab = (function() {
             <!-- Upload Foto Bukti Opsional -->
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
               <div class="flex items-center justify-between">
-                <label class="block font-bold text-slate-700">📸 Lampirkan Foto Bukti Fisik / Kondisi Paket (Opsional)</label>
+                <label class="block font-bold text-slate-700"> Lampirkan Foto Bukti Fisik / Kondisi Paket (Opsional)</label>
                 <span class="text-[10px] text-slate-400">Kompresi Otomatis</span>
               </div>
-              <input type="file" id="recv-photo-input" accept="image/*" capture="environment" onchange="StockTransfersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              
+              <input type="file" id="recv-photo-input" accept="image&#47;*" capture="environment" onchange="StockTransfersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+
               <!-- Thumbnail Preview Box -->
               <div id="recv-photo-preview-box" class="hidden items-center space-x-3 pt-2">
                 <img id="recv-photo-preview-img" src="" class="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-xs" />
@@ -694,7 +705,7 @@ var StockTransfersTab = (function() {
       window._transferPrdList = products.map(p => ({
         value: p.id,
         label: p.name,
-        sublabel: `${p.code || p.id} • Total Stok: ${p.stock || 0} ${p.unit || 'pcs'}`,
+        sublabel: `${p.code || p.id}  Total Stok: ${p.stock || 0} ${p.unit || 'pcs'}`,
         stock: p.stock || 0,
         unit: p.unit || 'pcs'
       }));
@@ -732,7 +743,14 @@ var StockTransfersTab = (function() {
         options: window._transferPrdList || [],
         placeholder: '-- Ketik / Cari Nama atau Kode Produk --',
         name: 'product_id',
-        required: true
+        required: true,
+        onChange: function(selected) {
+          // Fokus otomatis ke input Qty setelah barang dipilih
+          if (selected) {
+            const qtyInput = div.querySelector('.transfer-item-qty');
+            if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+          }
+        }
       });
     }
   }
