@@ -13,7 +13,8 @@
       roles: ['create', 'read', 'edit', 'delete'],
       warehouses: ['create', 'read', 'edit', 'delete'],
       stocks: ['create', 'read', 'edit', 'delete'],
-      transfers: ['create', 'read', 'edit', 'delete', 'approve', 'receive']
+      transfers: ['create', 'read', 'edit', 'delete', 'approve', 'receive'],
+      reports: ['read', 'export']
     },
     manager: {
       dashboard: ['read'],
@@ -23,7 +24,8 @@
       categories: ['create', 'read', 'edit', 'delete'],
       warehouses: ['create', 'read', 'edit'],
       stocks: ['create', 'read', 'edit'],
-      transfers: ['create', 'read', 'edit', 'approve', 'receive']
+      transfers: ['create', 'read', 'edit', 'approve', 'receive'],
+      reports: ['read', 'export']
     },
     staff: {
       dashboard: ['read'],
@@ -32,7 +34,8 @@
       categories: ['read'],
       warehouses: ['read'],
       stocks: ['read'],
-      transfers: ['read', 'create']
+      transfers: ['read', 'create'],
+      reports: ['read']
     },
     spg: {
       dashboard: ['read'],
@@ -41,7 +44,8 @@
       warehouses: ['read'],
       stocks: ['read'],
       transfers: ['read', 'create', 'receive'],
-      orders: ['read', 'create']
+      orders: ['read', 'create'],
+      reports: ['read']
     },
     viewer: {
       dashboard: ['read'],
@@ -49,7 +53,8 @@
       categories: ['read'],
       warehouses: ['read'],
       stocks: ['read'],
-      transfers: ['read']
+      transfers: ['read'],
+      reports: ['read']
     }
   };
 

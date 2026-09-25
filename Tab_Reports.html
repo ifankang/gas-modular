@@ -297,11 +297,12 @@
     loadLookups: function() {
       // Muat daftar gudang
       API.warehouses.list().then(res => {
-        if (res.success && Array.isArray(res.data)) {
-          this.warehousesList = res.data;
+        const list = Array.isArray(res) ? res : (res && res.data ? res.data : []);
+        if (Array.isArray(list)) {
+          this.warehousesList = list;
           const whSelect = document.getElementById('filter-warehouse');
           whSelect.innerHTML = '<option value="">-- Semua Gudang --</option>';
-          res.data.forEach(w => {
+          list.forEach(w => {
             whSelect.innerHTML += `<option value="${w.id}">${w.name} (${w.code})</option>`;
           });
         }
@@ -309,11 +310,12 @@
 
       // Muat daftar produk
       API.products.list().then(res => {
-        if (res.success && Array.isArray(res.data)) {
-          this.productsList = res.data;
+        const list = Array.isArray(res) ? res : (res && res.data ? res.data : []);
+        if (Array.isArray(list)) {
+          this.productsList = list;
           const prdSelect = document.getElementById('filter-product');
           prdSelect.innerHTML = '<option value="">-- Semua Produk --</option>';
-          res.data.forEach(p => {
+          list.forEach(p => {
             prdSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.code})</option>`;
           });
         }
@@ -322,8 +324,8 @@
 
     loadSummaryKPIs: function() {
       API.reports.summary().then(res => {
-        if (res.success && res.data) {
-          const d = res.data;
+        const d = (res && res.data !== undefined) ? res.data : res;
+        if (d && typeof d === 'object') {
           document.getElementById('kpi-total-items').innerText = (d.total_inventory_items || 0).toLocaleString('id-ID');
           document.getElementById('kpi-total-valuation').innerText = this.formatCurrency(d.total_inventory_valuation || 0);
           document.getElementById('kpi-total-sales').innerText = this.formatCurrency(d.total_sales_amount || 0);
@@ -388,21 +390,24 @@
         apiCall = API.reports.transfers(params);
       }
 
-      if (!apiCall) return;
+      if (!apiCall) {
+        loading.classList.add('hidden');
+        return;
+      }
 
       apiCall.then(res => {
         loading.classList.add('hidden');
-        if (!res.success) {
-          Toast.error(res.message || 'Gagal memuat laporan.');
+        const reportData = (res && res.data !== undefined) ? res.data : res;
+        if (!reportData) {
           emptyState.classList.remove('hidden');
           return;
         }
 
-        this.activeReportData = res.data;
-        this.renderTable(this.activeReportType, res.data);
+        this.activeReportData = reportData;
+        this.renderTable(this.activeReportType, reportData);
       }).catch(err => {
         loading.classList.add('hidden');
-        Toast.error(err.message || 'Terjadi kesalahan sistem.');
+        Toast.error(err.message || 'Terjadi kesalahan sistem saat memuat laporan.');
         emptyState.classList.remove('hidden');
       });
     },
