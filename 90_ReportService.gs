@@ -429,12 +429,347 @@ const ReportService = {
   },
 
   /**
+   * 7. DASHBOARD ACTIONABLE INSIGHTS & IN/OUT EQUILIBRIUM
+   * Menghitung keseimbangan arus masuk vs keluar (Qty & Value), peringatan actionable,
+   * dan ranking performa gudang, produk, serta sales dalam satu siklus (single-pass).
+   *
+   * @param {Object} options { days: number } Default 30 hari (0 = semua waktu)
+   * @returns {Object}
+   */
+  getDashboardInsights: function(options) {
+    options = options || {};
+    const days = typeof options.days === 'number' ? options.days : 30;
+    const CACHE_KEY = 'DASHBOARD_INSIGHTS_DAYS_' + days;
+
+    try {
+      const cache = CacheService.getScriptCache();
+      const cached = cache.get(CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      Logger.log("Dashboard insights cache get error: " + e.message);
+    }
+
+    // Ambil data sheet melalui Database (otomatis menggunakan RAM Cache)
+    const allMutations = Database.findAll('StockMutations') || [];
+    const allOrders = Database.findAll('Orders') || [];
+    const allOrderItems = Database.findAll('OrderItems') || [];
+    const allProducts = Database.findAll('Products') || [];
+    const allWarehouses = Database.findAll('Warehouses') || [];
+    const allUsers = Database.findAll('Users') || [];
+    const allStocks = Database.findAll('Stocks') || [];
+
+    // Map lookup untuk kecepatan O(1)
+    const productMap = {};
+    allProducts.forEach(p => { productMap[p.id] = p; });
+
+    const warehouseMap = {};
+    allWarehouses.forEach(w => { warehouseMap[w.id] = w; });
+
+    const userMap = {};
+    allUsers.forEach(u => {
+      userMap[u.id] = u;
+      if (u.name) userMap[u.name] = u;
+      if (u.email) userMap[u.email] = u;
+    });
+
+    // Hitung tanggal cutoff jika days > 0
+    let cutoffTime = 0;
+    if (days > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      d.setHours(0, 0, 0, 0);
+      cutoffTime = d.getTime();
+    }
+
+    // 1. IN vs OUT EQUILIBRIUM (Qty & Value)
+    let inQty = 0;
+    let outQty = 0;
+    let inValue = 0;   // Modal Beli (Qty * cost_price)
+    let outValue = 0;  // Nilai Jual / Omzet (Qty * price)
+
+    // Agregasi Performa
+    const warehouseStats = {};
+    allWarehouses.forEach(w => {
+      warehouseStats[w.id] = {
+        id: w.id,
+        name: w.name || w.id,
+        code: w.code || w.id,
+        in_qty: 0,
+        out_qty: 0,
+        out_value: 0,
+        low_stock_count: 0
+      };
+    });
+
+    const productSalesStats = {};
+    allProducts.forEach(p => {
+      productSalesStats[p.id] = {
+        id: p.id,
+        code: p.code || p.id,
+        name: p.name || p.id,
+        sold_qty: 0,
+        revenue: 0,
+        current_stock: Number(p.stock) || 0,
+        cost_price: Number(p.cost_price) || 0,
+        price: Number(p.price) || 0,
+        last_mutation_time: 0
+      };
+    });
+
+    // Iterasi mutasi stok (Single-Pass)
+    allMutations.forEach(m => {
+      const mutTime = new Date(m.date || m.created_at || 0).getTime();
+      const p = productMap[m.product_id];
+      const costPrice = p ? (Number(p.cost_price) || 0) : 0;
+      const sellingPrice = p ? (Number(p.price) || 0) : 0;
+      const qty = Number(m.quantity) || 0;
+      const type = String(m.type || '').toUpperCase();
+
+      // Catat mutasi terakhir per produk untuk deteksi dead-stock
+      if (productSalesStats[m.product_id] && mutTime > productSalesStats[m.product_id].last_mutation_time) {
+        productSalesStats[m.product_id].last_mutation_time = mutTime;
+      }
+
+      // Filter periode
+      if (cutoffTime > 0 && mutTime < cutoffTime) {
+        return;
+      }
+
+      // Hitung arus IN vs OUT murni (abaikan transfer internal agar net tidak bias)
+      if (type === 'IN') {
+        inQty += qty;
+        inValue += (qty * costPrice);
+        if (warehouseStats[m.warehouse_id]) {
+          warehouseStats[m.warehouse_id].in_qty += qty;
+        }
+      } else if (type === 'OUT') {
+        outQty += qty;
+        outValue += (qty * sellingPrice);
+        if (warehouseStats[m.warehouse_id]) {
+          warehouseStats[m.warehouse_id].out_qty += qty;
+          warehouseStats[m.warehouse_id].out_value += (qty * sellingPrice);
+        }
+        if (productSalesStats[m.product_id]) {
+          productSalesStats[m.product_id].sold_qty += qty;
+          productSalesStats[m.product_id].revenue += (qty * sellingPrice);
+        }
+      }
+    });
+
+    // 2. AGREGASI SALES / STAFF DARI ORDERS
+    const salesUserStats = {};
+    let pendingOrdersCount = 0;
+    let pendingOrdersAmount = 0;
+    const pendingOrdersList = [];
+
+    allOrders.forEach(o => {
+      const orderTime = new Date(o.date || o.created_at || 0).getTime();
+      const status = String(o.status || '').toLowerCase();
+      const type = String(o.type || '').toUpperCase();
+      const totalAmt = Number(o.total_amount) || 0;
+
+      // Cek pesanan tertahan (pending)
+      if (status === 'pending' || status === 'draft') {
+        pendingOrdersCount++;
+        pendingOrdersAmount += totalAmt;
+        if (pendingOrdersList.length < 5) {
+          pendingOrdersList.push({
+            id: o.id,
+            order_no: o.order_no || o.id,
+            type: o.type,
+            contact_name: o.contact_name,
+            total_amount: totalAmt,
+            date: o.date || o.created_at
+          });
+        }
+      }
+
+      // Filter periode untuk performa sales
+      if (cutoffTime > 0 && orderTime < cutoffTime) {
+        return;
+      }
+
+      // Hitung pesanan penjualan (SALES) yang disetujui/selesai
+      if (type === 'SALES' && (status === 'approved' || status === 'received' || status === 'completed')) {
+        const creator = o.created_by || o.approved_by || 'Staff';
+        if (!salesUserStats[creator]) {
+          salesUserStats[creator] = {
+            name: userMap[creator] ? (userMap[creator].name || creator) : creator,
+            order_count: 0,
+            total_revenue: 0
+          };
+        }
+        salesUserStats[creator].order_count++;
+        salesUserStats[creator].total_revenue += totalAmt;
+      }
+    });
+
+    // 3. CEK LOW STOCK & DEAD STOCK
+    const lowStockAlerts = [];
+    const deadStockAlerts = [];
+    const nowTime = new Date().getTime();
+    const thirtyDaysAgo = nowTime - (30 * 24 * 60 * 60 * 1000);
+
+    // Ambil stok real dari Stocks table jika tersedia, atau fallback ke Products.stock
+    const currentStockByProduct = {};
+    allStocks.forEach(s => {
+      const q = Number(s.quantity) || 0;
+      currentStockByProduct[s.product_id] = (currentStockByProduct[s.product_id] || 0) + q;
+      if (q <= 5 && warehouseStats[s.warehouse_id]) {
+        warehouseStats[s.warehouse_id].low_stock_count++;
+      }
+    });
+
+    allProducts.forEach(p => {
+      const stock = currentStockByProduct[p.id] !== undefined ? currentStockByProduct[p.id] : (Number(p.stock) || 0);
+      const stats = productSalesStats[p.id];
+
+      // Peringatan stok kritis (<= 5)
+      if (stock <= 5) {
+        lowStockAlerts.push({
+          id: p.id,
+          code: p.code || p.id,
+          name: p.name || p.id,
+          stock: stock,
+          unit: p.unit || 'pcs',
+          price: Number(p.price) || 0
+        });
+      }
+
+      // Deteksi dead stock: ada stok (> 5 pcs) tapi tidak ada mutasi/penjualan dalam 30 hari terakhir
+      if (stock > 5) {
+        const lastActivity = stats ? stats.last_mutation_time : 0;
+        if (lastActivity === 0 || lastActivity < thirtyDaysAgo) {
+          const daysInactive = lastActivity === 0 ? 60 : Math.round((nowTime - lastActivity) / (24 * 60 * 60 * 1000));
+          deadStockAlerts.push({
+            id: p.id,
+            code: p.code || p.id,
+            name: p.name || p.id,
+            stock: stock,
+            cost_price: Number(p.cost_price) || 0,
+            tied_capital: stock * (Number(p.cost_price) || 0),
+            days_inactive: daysInactive
+          });
+        }
+      }
+    });
+
+    // Urutkan peringatan
+    lowStockAlerts.sort((a, b) => a.stock - b.stock);
+    deadStockAlerts.sort((a, b) => b.tied_capital - a.tied_capital);
+
+    // 4. RANKING PERFORMERS
+    // Top Products
+    const productStatsArr = Object.values(productSalesStats);
+    productStatsArr.sort((a, b) => b.sold_qty - a.sold_qty);
+
+    const topProducts = productStatsArr.filter(p => p.sold_qty > 0).slice(0, 5);
+    const bottomProducts = productStatsArr
+      .filter(p => p.current_stock > 0)
+      .sort((a, b) => a.sold_qty - b.sold_qty)
+      .slice(0, 5);
+
+    // Warehouses
+    const warehouseArr = Object.values(warehouseStats);
+    warehouseArr.sort((a, b) => b.out_value - a.out_value);
+    const topWarehouses = warehouseArr.slice(0, 5);
+    const bottomWarehouses = [...warehouseArr].sort((a, b) => (a.out_qty + a.in_qty) - (b.out_qty + b.in_qty)).slice(0, 5);
+
+    // Sales Staff
+    const salesArr = Object.values(salesUserStats);
+    salesArr.sort((a, b) => b.total_revenue - a.total_revenue);
+    const topSales = salesArr.slice(0, 5);
+
+    // 5. STATUS EQUILIBRIUM & CASHFLOW
+    const totalVolume = inQty + outQty;
+    const inQtyRatio = totalVolume > 0 ? Math.round((inQty / totalVolume) * 100) : 50;
+    const outQtyRatio = totalVolume > 0 ? (100 - inQtyRatio) : 50;
+
+    const netQtyDelta = inQty - outQty;
+    const netValueFlow = outValue - inValue; // Omzet keluar dikurang modal pembelian masuk
+
+    let equilibriumStatus = 'BALANCED'; // BALANCED, OVERSTOCK_RISK, DEPLETION_RISK
+    let statusLabel = 'Sehat & Berimbang';
+    let statusColor = 'emerald';
+
+    if (inQty > 0 && outQty === 0) {
+      equilibriumStatus = 'ACCUMULATING';
+      statusLabel = 'Akumulasi Stok (Belum Ada Penjualan)';
+      statusColor = 'amber';
+    } else if (inQty > (outQty * 1.6) && inQty > 20) {
+      equilibriumStatus = 'OVERSTOCK_RISK';
+      statusLabel = 'Pemasukan Tinggi (Waspada Overstock & Kas Mandek)';
+      statusColor = 'amber';
+    } else if (outQty > (inQty * 1.6) && outQty > 20) {
+      equilibriumStatus = 'DEPLETION_RISK';
+      statusLabel = 'Pengeluaran Cepat (Waspada Kehabisan Stok / Perlu Restock)';
+      statusColor = 'rose';
+    }
+
+    const payload = {
+      period_days: days,
+      equilibrium: {
+        in_qty: inQty,
+        out_qty: outQty,
+        in_value: inValue,
+        out_value: outValue,
+        net_qty: netQtyDelta,
+        net_value: netValueFlow,
+        in_ratio: inQtyRatio,
+        out_ratio: outQtyRatio,
+        status: equilibriumStatus,
+        status_label: statusLabel,
+        status_color: statusColor
+      },
+      alerts: {
+        low_stock: {
+          total: lowStockAlerts.length,
+          items: lowStockAlerts.slice(0, 6)
+        },
+        pending_orders: {
+          total: pendingOrdersCount,
+          amount: pendingOrdersAmount,
+          items: pendingOrdersList
+        },
+        dead_stock: {
+          total: deadStockAlerts.length,
+          items: deadStockAlerts.slice(0, 6)
+        }
+      },
+      performers: {
+        top_products: topProducts,
+        bottom_products: bottomProducts,
+        top_warehouses: topWarehouses,
+        bottom_warehouses: bottomWarehouses,
+        top_sales: topSales
+      },
+      generated_at: new Date().toISOString()
+    };
+
+    // Cache selama 5 menit (300 detik)
+    try {
+      const cache = CacheService.getScriptCache();
+      cache.put(CACHE_KEY, JSON.stringify(payload), 300);
+    } catch (e) {
+      Logger.log("Dashboard insights cache put error: " + e.message);
+    }
+
+    return payload;
+  },
+
+  /**
    * Invalidasi manual atau otomatis saat ada mutasi transaksi / stok.
    */
   invalidateSummaryCache: function() {
     try {
       const cache = CacheService.getScriptCache();
       cache.remove('REPORT_KPI_EXECUTIVE_SUMMARY');
+      cache.remove('DASHBOARD_INSIGHTS_DAYS_7');
+      cache.remove('DASHBOARD_INSIGHTS_DAYS_30');
+      cache.remove('DASHBOARD_INSIGHTS_DAYS_90');
+      cache.remove('DASHBOARD_INSIGHTS_DAYS_0');
     } catch (e) {
       Logger.log("KPI cache invalidate error: " + e.message);
     }

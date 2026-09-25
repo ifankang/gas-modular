@@ -98,3 +98,21 @@ function reportsSummary(sessionToken) {
     return Response.error(err.message);
   }
 }
+
+/**
+ * Endpoint Dashboard Actionable Insights & In/Out Equilibrium.
+ * @param {Object} options { days: number }
+ * @param {string} sessionToken
+ * @returns {Object} Response JSON
+ */
+function dashboardInsights(options, sessionToken) {
+  try {
+    // Bisa diakses oleh siapapun yang memiliki hak akses dashboard
+    RBAC.authorize(sessionToken, 'dashboard', 'read');
+    const result = ReportService.getDashboardInsights(options);
+    return Response.success(result, 'Dashboard insights berhasil dimuat.');
+  } catch (err) {
+    return Response.error(err.message);
+  }
+}
+

@@ -1,85 +1,537 @@
 <div class="space-y-6">
-  <!-- Welcome Banner -->
-  <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 sm:p-8 text-white shadow-soft relative overflow-hidden">
-    <div class="relative z-10">
-      <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-sm mb-3">
-        ⚡ Fast-Input Workspace
-      </span>
-      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Selamat Datang di DataBridge</h1>
-      <p class="text-blue-100 text-sm sm:text-base mt-1.5 max-w-xl">
-        Kelola basis data pengguna, katalog produk, dan transaksi secara instan dengan antarmuka responsif dan otomatisasi Google Spreadsheet.
-      </p>
-
-      <!-- Quick Action Buttons inside Banner -->
-      <div class="mt-6 flex flex-wrap gap-3">
-        <button 
-          onclick="App.navigate('users'); setTimeout(() => UsersTab.openCreateModal(), 200);" 
-          class="inline-flex items-center px-4 py-2.5 bg-white text-blue-700 hover:bg-blue-50 active:bg-blue-100 font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition-all"
-        >
-          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
-          + Tambah User
-        </button>
-
-        <button 
-          onclick="App.navigate('products'); setTimeout(() => ProductsTab.openCreateModal(), 200);" 
-          class="inline-flex items-center px-4 py-2.5 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white border border-white/20 font-semibold text-xs sm:text-sm rounded-lg backdrop-blur-sm transition-all"
-        >
-          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-          + Tambah Produk
-        </button>
-
-        <button 
-          id="btn-dashboard-seed"
-          onclick="if(confirm('Jalankan seeder untuk melengkapi katalog produk dan mengalokasikan stok di tiap gudang?')) { if(typeof Loading !== 'undefined') Loading.show(); API.system.seed().then(res => { if(res.success) { Toast.success(res.message); } else { Toast.error(res.message); } }).catch(err => Toast.error(err.message)).finally(() => { if(typeof Loading !== 'undefined') Loading.hide(); }); }" 
-          class="inline-flex items-center px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 active:bg-amber-500/40 text-amber-200 border border-amber-300/30 font-semibold text-xs sm:text-sm rounded-lg backdrop-blur-sm transition-all"
-          title="Inisialisasi Data Produk & Stok di Tiap Gudang"
-        >
-          <svg class="w-4 h-4 mr-1.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          🌱 Seed Produk & Stok Gudang
-        </button>
+  <!-- Top Bar: Title & Filter Controls -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
+        ⚡
+      </div>
+      <div>
+        <h1 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">Executive Dashboard & Insights</h1>
+        <p class="text-xs text-slate-500">Monitoring performa toko, keseimbangan stok, arus kas & peringatan penting</p>
       </div>
     </div>
 
-    <!-- Decorative background circle -->
-    <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+    <!-- Time Filter & Actions -->
+    <div class="flex items-center space-x-2 self-end sm:self-auto">
+      <div class="relative">
+        <select 
+          id="dash-filter-period" 
+          onchange="DashboardTab.loadInsights()" 
+          class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-3 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+        >
+          <option value="7">7 Hari Terakhir</option>
+          <option value="30" selected>30 Hari Terakhir</option>
+          <option value="90">90 Hari Terakhir</option>
+          <option value="0">Sepanjang Waktu</option>
+        </select>
+      </div>
+
+      <button 
+        onclick="DashboardTab.loadInsights(true)" 
+        title="Refresh Data & Hitung Ulang" 
+        class="bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-xs font-semibold transition-all inline-flex items-center space-x-1"
+      >
+        <svg id="dash-refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <span>Refresh</span>
+      </button>
+
+      <button 
+        id="btn-dashboard-seed"
+        onclick="DashboardTab.runSeed()" 
+        class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3 py-2 rounded-lg text-xs font-semibold transition-all inline-flex items-center space-x-1"
+        title="Inisialisasi Data Demo"
+      >
+        <span>🌱 Seed Demo</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Quick Info Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    <!-- Card 1: Users -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4 cursor-pointer hover:border-blue-400 transition-all" onclick="App.navigate('users')">
-      <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-      </div>
+  <!-- SECTION 1: IN vs OUT EQUILIBRIUM (Stock & Cashflow Balance) -->
+  <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+    <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-3">
       <div>
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Modul Entitas</span>
-        <h3 class="text-base font-bold text-slate-800">Pengguna (Users)</h3>
-        <p class="text-xs text-blue-600 font-medium mt-0.5">Buka Manajemen &rarr;</p>
+        <div class="flex items-center space-x-2">
+          <span class="text-base font-bold text-slate-800">⚖️ Keseimbangan Stok & Estimasi Arus Kas (In vs Out Equilibrium)</span>
+          <span id="dash-eq-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Memuat Status...
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 mt-0.5">Perbandingan volume fisik barang masuk vs keluar dan estimasi perputaran nilai modal/omzet</p>
+      </div>
+      <div class="text-left md:text-right">
+        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">Net Arus Kas (Omzet - Modal Masuk)</span>
+        <span id="dash-eq-net-value" class="text-sm font-extrabold text-slate-800">Rp 0</span>
       </div>
     </div>
 
-    <!-- Card 2: Products -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4 cursor-pointer hover:border-blue-400 transition-all" onclick="App.navigate('products')">
-      <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+    <!-- Dual Metric Cards: INFLOW vs OUTFLOW -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+      <!-- INFLOW Card -->
+      <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+              📥
+            </div>
+            <div>
+              <span class="text-xs font-bold text-blue-900 uppercase tracking-wide">Barang Masuk (Inflow / Purchasing)</span>
+              <p class="text-[11px] text-blue-600">Restock & Penerimaan Pengadaan</p>
+            </div>
+          </div>
+          <span id="dash-in-qty" class="text-xl font-extrabold text-blue-900">0 pcs</span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-blue-100/60 flex items-center justify-between text-xs">
+          <span class="text-blue-700">Modal Diserap (Cost Price):</span>
+          <span id="dash-in-val" class="font-bold text-blue-950">Rp 0</span>
+        </div>
       </div>
-      <div>
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Modul Entitas</span>
-        <h3 class="text-base font-bold text-slate-800">Produk (Products)</h3>
-        <p class="text-xs text-emerald-600 font-medium mt-0.5">Buka Katalog &rarr;</p>
+
+      <!-- OUTFLOW Card -->
+      <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+              📤
+            </div>
+            <div>
+              <span class="text-xs font-bold text-emerald-900 uppercase tracking-wide">Barang Keluar (Outflow / Sales)</span>
+              <p class="text-[11px] text-emerald-600">Penjualan & Pengeluaran Konsumen</p>
+            </div>
+          </div>
+          <span id="dash-out-qty" class="text-xl font-extrabold text-emerald-900">0 pcs</span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-emerald-100/60 flex items-center justify-between text-xs">
+          <span class="text-emerald-700">Estimasi Omzet Terealisasi:</span>
+          <span id="dash-out-val" class="font-bold text-emerald-950">Rp 0</span>
+        </div>
       </div>
     </div>
 
-    <!-- Card 3: Database Status -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-      <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+    <!-- Visual Ratio Bar -->
+    <div class="mt-5">
+      <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1.5">
+        <span id="dash-ratio-in-label">📥 Masuk: 50%</span>
+        <span id="dash-net-qty-label" class="text-slate-500 font-normal">Net Stok: +0 pcs</span>
+        <span id="dash-ratio-out-label">Keluar: 50% 📤</span>
       </div>
-      <div>
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Database Terhubung</span>
-        <h3 class="text-base font-bold text-slate-800">Google Spreadsheet</h3>
-        <p class="text-xs text-slate-500 mt-0.5 font-mono">LockService Protected</p>
+      <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+        <div id="dash-bar-in" class="bg-blue-500 transition-all duration-500" style="width: 50%;"></div>
+        <div id="dash-bar-out" class="bg-emerald-500 transition-all duration-500" style="width: 50%;"></div>
       </div>
     </div>
+  </div>
+
+  <!-- SECTION 2: ACTIONABLE ALERTS (Smart Action Cards) -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- Alert 1: Low Stock Alert -->
+    <div class="bg-white border border-rose-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-base">⚠️</span>
+            <h3 class="text-xs font-bold text-rose-800 uppercase tracking-wider">Stok Kritis / Habis (&le; 5 pcs)</h3>
+          </div>
+          <span id="dash-alert-low-count" class="text-xs font-extrabold px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full">0</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">Item mendesak yang butuh transfer stok atau pembuatan purchase order:</p>
+        
+        <div id="dash-alert-low-list" class="space-y-1.5 min-h-[90px] text-xs">
+          <p class="text-slate-400 italic py-2 text-center">Tidak ada stok kritis</p>
+        </div>
+      </div>
+
+      <button 
+        onclick="App.navigate('transfers'); setTimeout(() => StockTransfersTab.openCreateModal(), 200);" 
+        class="mt-3 w-full text-center py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs rounded-lg border border-rose-200 transition-colors"
+      >
+        + Buat Transfer Stok &rarr;
+      </button>
+    </div>
+
+    <!-- Alert 2: Pending Orders Alert -->
+    <div class="bg-white border border-amber-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-base">⏳</span>
+            <h3 class="text-xs font-bold text-amber-800 uppercase tracking-wider">Pesanan Pending / Tertahan</h3>
+          </div>
+          <span id="dash-alert-pending-count" class="text-xs font-extrabold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">0</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">Pesanan yang belum disetujui / diproses pengiriman ke pelanggan:</p>
+
+        <div id="dash-alert-pending-list" class="space-y-1.5 min-h-[90px] text-xs">
+          <p class="text-slate-400 italic py-2 text-center">Semua pesanan terproses</p>
+        </div>
+      </div>
+
+      <button 
+        onclick="App.navigate('orders')" 
+        class="mt-3 w-full text-center py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold text-xs rounded-lg border border-amber-200 transition-colors"
+      >
+        Buka Modul Pesanan &rarr;
+      </button>
+    </div>
+
+    <!-- Alert 3: Dead Stock / Inactive Alert -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-base">🧊</span>
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Dead Stock (&gt;30 Hari Diam)</h3>
+          </div>
+          <span id="dash-alert-dead-count" class="text-xs font-extrabold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full">0</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">Produk menumpuk tanpa mutasi, berisiko membekukan modal kas:</p>
+
+        <div id="dash-alert-dead-list" class="space-y-1.5 min-h-[90px] text-xs">
+          <p class="text-slate-400 italic py-2 text-center">Tidak ada dead stock terdeteksi</p>
+        </div>
+      </div>
+
+      <button 
+        onclick="App.navigate('reports')" 
+        class="mt-3 w-full text-center py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-300 transition-colors"
+      >
+        Cek Valuasi & Kartu Stok &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 3: TOP PERFORMERS VS UNDERPERFORMERS -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    
+    <!-- LEFT: PRODUK (Most Sold vs Slow Moving) -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">📦</span>
+          <h3 class="font-bold text-sm text-slate-800">Analisis Performa Produk</h3>
+        </div>
+        <span class="text-[11px] text-slate-400">Qty Terjual & Omzet</span>
+      </div>
+
+      <!-- Top Best Sellers -->
+      <div>
+        <span class="text-xs font-bold text-emerald-700 flex items-center mb-2">
+          🏆 Top Best Sellers (Paling Laku)
+        </span>
+        <div id="dash-table-top-products" class="space-y-1 text-xs">
+          <p class="text-slate-400 italic">Belum ada transaksi penjualan</p>
+        </div>
+      </div>
+
+      <!-- Bottom / Slow Moving -->
+      <div class="pt-3 border-t border-slate-100">
+        <span class="text-xs font-bold text-slate-600 flex items-center mb-2">
+          📉 Slow Moving / 0 Sales (Perlu Promo / Bundle)
+        </span>
+        <div id="dash-table-bottom-products" class="space-y-1 text-xs">
+          <p class="text-slate-400 italic">Semua produk bergerak aktif</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: GUDANG & SALES PERFORMA -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">🏪</span>
+          <h3 class="font-bold text-sm text-slate-800">Performa Gudang & Tim Sales</h3>
+        </div>
+        <span class="text-[11px] text-slate-400">Distribusi & Kontribusi</span>
+      </div>
+
+      <!-- Warehouses Performance -->
+      <div>
+        <span class="text-xs font-bold text-blue-700 flex items-center mb-2">
+          🏬 Gudang / Outlet Paling Aktif (Volume Keluar)
+        </span>
+        <div id="dash-table-warehouses" class="space-y-1 text-xs">
+          <p class="text-slate-400 italic">Memuat data gudang...</p>
+        </div>
+      </div>
+
+      <!-- Sales Staff Contribution -->
+      <div class="pt-3 border-t border-slate-100">
+        <span class="text-xs font-bold text-indigo-700 flex items-center mb-2">
+          👤 Kontribusi Tim Sales / Staff Pembuat Pesanan
+        </span>
+        <div id="dash-table-sales" class="space-y-1 text-xs">
+          <p class="text-slate-400 italic">Belum ada transaksi sales tercatat</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
+
+<script>
+/**
+ * Dashboard Controller & View Handler
+ */
+const DashboardTab = (function() {
+  let isInitialized = false;
+
+  function init() {
+    if (!isInitialized) {
+      loadInsights();
+      isInitialized = true;
+    }
+  }
+
+  function formatIDR(num) {
+    if (isNaN(num) || num === null) return 'Rp 0';
+    return 'Rp ' + Number(num).toLocaleString('id-ID');
+  }
+
+  function loadInsights(forceRefresh) {
+    const periodSelect = document.getElementById('dash-filter-period');
+    const days = periodSelect ? parseInt(periodSelect.value, 10) : 30;
+
+    const refreshIcon = document.getElementById('dash-refresh-icon');
+    if (refreshIcon) refreshIcon.classList.add('animate-spin');
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    // Call API
+    API.dashboard.insights({ days: days })
+      .then(function(res) {
+        const data = res && res.data ? res.data : res;
+        if (data) {
+          renderDashboard(data);
+        }
+      })
+      .catch(function(err) {
+        console.error('Error loading dashboard insights:', err);
+        if (typeof Toast !== 'undefined') {
+          Toast.error(err.message || 'Gagal memuat insight dashboard');
+        }
+      })
+      .finally(function() {
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function renderDashboard(data) {
+    const eq = data.equilibrium || {};
+    const alerts = data.alerts || {};
+    const perf = data.performers || {};
+
+    // 1. Render Equilibrium
+    const inQtyEl = document.getElementById('dash-in-qty');
+    const inValEl = document.getElementById('dash-in-val');
+    const outQtyEl = document.getElementById('dash-out-qty');
+    const outValEl = document.getElementById('dash-out-val');
+    const netValEl = document.getElementById('dash-eq-net-value');
+    const eqBadgeEl = document.getElementById('dash-eq-badge');
+
+    if (inQtyEl) inQtyEl.innerText = (eq.in_qty || 0).toLocaleString('id-ID') + ' pcs';
+    if (inValEl) inValEl.innerText = formatIDR(eq.in_value);
+    if (outQtyEl) outQtyEl.innerText = (eq.out_qty || 0).toLocaleString('id-ID') + ' pcs';
+    if (outValEl) outValEl.innerText = formatIDR(eq.out_value);
+
+    if (netValEl) {
+      const netVal = Number(eq.net_value) || 0;
+      netValEl.innerText = (netVal >= 0 ? '+ ' : '') + formatIDR(netVal);
+      netValEl.className = 'text-sm font-extrabold ' + (netVal >= 0 ? 'text-emerald-700' : 'text-rose-700');
+    }
+
+    if (eqBadgeEl) {
+      eqBadgeEl.innerText = eq.status_label || 'Sehat & Berimbang';
+      if (eq.status_color === 'rose') {
+        eqBadgeEl.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+      } else if (eq.status_color === 'amber') {
+        eqBadgeEl.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+      } else {
+        eqBadgeEl.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+      }
+    }
+
+    // Ratio Progress Bar
+    const inRatio = eq.in_ratio !== undefined ? eq.in_ratio : 50;
+    const outRatio = eq.out_ratio !== undefined ? eq.out_ratio : 50;
+    const barIn = document.getElementById('dash-bar-in');
+    const barOut = document.getElementById('dash-bar-out');
+    const lblIn = document.getElementById('dash-ratio-in-label');
+    const lblOut = document.getElementById('dash-ratio-out-label');
+    const lblNetQty = document.getElementById('dash-net-qty-label');
+
+    if (barIn) barIn.style.width = inRatio + '%';
+    if (barOut) barOut.style.width = outRatio + '%';
+    if (lblIn) lblIn.innerText = `📥 Masuk: ${inRatio}% (${(eq.in_qty || 0)} pcs)`;
+    if (lblOut) lblOut.innerText = `Keluar: ${outRatio}% (${(eq.out_qty || 0)} pcs) 📤`;
+    if (lblNetQty) {
+      const net = (eq.net_qty || 0);
+      lblNetQty.innerText = `Net Akumulasi: ${net >= 0 ? '+' : ''}${net} pcs`;
+    }
+
+    // 2. Render Actionable Alerts
+    // Low Stock
+    const lowCountEl = document.getElementById('dash-alert-low-count');
+    const lowListEl = document.getElementById('dash-alert-low-list');
+    if (lowCountEl) lowCountEl.innerText = alerts.low_stock ? alerts.low_stock.total : 0;
+    if (lowListEl) {
+      const items = (alerts.low_stock && alerts.low_stock.items) || [];
+      if (items.length === 0) {
+        lowListEl.innerHTML = '<p class="text-slate-400 italic py-2 text-center">Aman. Tidak ada stok kritis (&le; 5 pcs)</p>';
+      } else {
+        lowListEl.innerHTML = items.map(it => `
+          <div class="flex items-center justify-between p-1.5 rounded bg-rose-50/60 border border-rose-100">
+            <span class="font-medium text-slate-800 truncate max-w-[170px]" title="${it.name}">${it.name}</span>
+            <span class="font-extrabold text-rose-700 bg-white px-1.5 py-0.5 rounded text-[11px] border border-rose-200">${it.stock} ${it.unit}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Pending Orders
+    const pendCountEl = document.getElementById('dash-alert-pending-count');
+    const pendListEl = document.getElementById('dash-alert-pending-list');
+    if (pendCountEl) pendCountEl.innerText = alerts.pending_orders ? alerts.pending_orders.total : 0;
+    if (pendListEl) {
+      const items = (alerts.pending_orders && alerts.pending_orders.items) || [];
+      if (items.length === 0) {
+        pendListEl.innerHTML = '<p class="text-slate-400 italic py-2 text-center">Semua pesanan sudah diproses</p>';
+      } else {
+        pendListEl.innerHTML = items.map(it => `
+          <div class="flex items-center justify-between p-1.5 rounded bg-amber-50/60 border border-amber-100">
+            <span class="font-medium text-slate-800 truncate max-w-[150px]" title="${it.order_no}">${it.order_no} (${it.contact_name || 'Pelanggan'})</span>
+            <span class="font-bold text-amber-800 text-[11px]">${formatIDR(it.total_amount)}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Dead Stock
+    const deadCountEl = document.getElementById('dash-alert-dead-count');
+    const deadListEl = document.getElementById('dash-alert-dead-list');
+    if (deadCountEl) deadCountEl.innerText = alerts.dead_stock ? alerts.dead_stock.total : 0;
+    if (deadListEl) {
+      const items = (alerts.dead_stock && alerts.dead_stock.items) || [];
+      if (items.length === 0) {
+        deadListEl.innerHTML = '<p class="text-slate-400 italic py-2 text-center">Tidak ada dead-stock terdeteksi</p>';
+      } else {
+        deadListEl.innerHTML = items.map(it => `
+          <div class="flex items-center justify-between p-1.5 rounded bg-slate-50 border border-slate-200">
+            <div class="truncate max-w-[160px]" title="${it.name}">
+              <p class="font-medium text-slate-800 truncate">${it.name}</p>
+              <span class="text-[10px] text-slate-400">${it.days_inactive} hari diam</span>
+            </div>
+            <span class="font-bold text-slate-700 text-[11px]">${formatIDR(it.tied_capital)}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 3. Render Top & Bottom Performers
+    // Top Products
+    const topProdEl = document.getElementById('dash-table-top-products');
+    if (topProdEl) {
+      const prods = perf.top_products || [];
+      if (prods.length === 0) {
+        topProdEl.innerHTML = '<p class="text-slate-400 italic py-1">Belum ada mutasi keluar/penjualan</p>';
+      } else {
+        topProdEl.innerHTML = prods.map((p, idx) => `
+          <div class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
+            <span class="truncate max-w-[200px] text-slate-700 font-medium">#${idx+1} ${p.name}</span>
+            <div class="text-right">
+              <span class="font-bold text-emerald-700">${p.sold_qty} terjual</span>
+              <span class="text-[10px] text-slate-400 block">${formatIDR(p.revenue)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Bottom / Slow Products
+    const botProdEl = document.getElementById('dash-table-bottom-products');
+    if (botProdEl) {
+      const prods = perf.bottom_products || [];
+      if (prods.length === 0) {
+        botProdEl.innerHTML = '<p class="text-slate-400 italic py-1">Semua produk bergerak aktif</p>';
+      } else {
+        botProdEl.innerHTML = prods.map((p) => `
+          <div class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
+            <span class="truncate max-w-[200px] text-slate-600">${p.name} (Stok: ${p.current_stock})</span>
+            <span class="text-slate-400 font-medium">${p.sold_qty} pcs keluar</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Warehouses
+    const whEl = document.getElementById('dash-table-warehouses');
+    if (whEl) {
+      const whs = perf.top_warehouses || [];
+      if (whs.length === 0) {
+        whEl.innerHTML = '<p class="text-slate-400 italic py-1">Tidak ada data gudang</p>';
+      } else {
+        whEl.innerHTML = whs.map((w, idx) => `
+          <div class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
+            <span class="truncate max-w-[190px] text-slate-700 font-medium">${w.name} (${w.code})</span>
+            <div class="text-right">
+              <span class="font-bold text-blue-700">${w.out_qty} pcs keluar</span>
+              <span class="text-[10px] text-slate-400 block">${formatIDR(w.out_value)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Top Sales Staff
+    const salesEl = document.getElementById('dash-table-sales');
+    if (salesEl) {
+      const sls = perf.top_sales || [];
+      if (sls.length === 0) {
+        salesEl.innerHTML = '<p class="text-slate-400 italic py-1">Belum ada pesanan penjualan terverifikasi</p>';
+      } else {
+        salesEl.innerHTML = sls.map((s, idx) => `
+          <div class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
+            <span class="truncate max-w-[180px] text-slate-700 font-medium">⭐ ${s.name}</span>
+            <div class="text-right">
+              <span class="font-bold text-indigo-700">${s.order_count} pesanan</span>
+              <span class="text-[10px] text-slate-400 block">${formatIDR(s.total_revenue)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  function runSeed() {
+    if (confirm('Jalankan seeder untuk melengkapi katalog produk dan mengalokasikan stok di tiap gudang?')) {
+      if (typeof Loading !== 'undefined') Loading.show();
+      API.system.seed()
+        .then(function(res) {
+          if (res.success) {
+            Toast.success(res.message);
+            loadInsights(true);
+          } else {
+            Toast.error(res.message);
+          }
+        })
+        .catch(function(err) {
+          Toast.error(err.message);
+        })
+        .finally(function() {
+          if (typeof Loading !== 'undefined') Loading.hide();
+        });
+    }
+  }
+
+  return {
+    init: init,
+    loadInsights: loadInsights,
+    runSeed: runSeed
+  };
+})();
+
+// Lifecycle Hook
+window.initDashboardTab = function() {
+  DashboardTab.init();
+};
+</script>

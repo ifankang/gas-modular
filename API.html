@@ -130,6 +130,10 @@
       summary: () => API.call('reportsSummary')
     },
 
+    dashboard: {
+      insights: (options) => API.call('dashboardInsights', options)
+    },
+
     system: {
       seed: () => API.call('systemSeed')
     }
