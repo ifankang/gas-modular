@@ -119,18 +119,43 @@ function seedDatabase() {
     productSheet = ss.insertSheet('Products');
   }
 
-  if (productSheet.getLastRow() === 0) {
-    const productHeaders = ['id', 'name', 'price', 'stock', 'created_at', 'updated_at'];
-    productSheet.appendRow(productHeaders);
-
     const sampleProducts = [
-      ['PRD-000001', 'Laptop Pro 14"', 15000000, 10, now, now],
-      ['PRD-000002', 'Wireless Mouse', 250000, 50, now, now],
-      ['PRD-000003', 'Mechanical Keyboard', 850000, 25, now, now]
+      ['PRD-000001', 'LP-PRO14', 'Laptop Pro 14"', 'CAT-000001', 15000000, 12000000, 20, 'unit', 'active', now, now],
+      ['PRD-000002', 'MS-WL01', 'Wireless Mouse Ergonomic', 'CAT-000001', 250000, 180000, 50, 'pcs', 'active', now, now],
+      ['PRD-000003', 'KB-MECH', 'Mechanical Keyboard RGB', 'CAT-000001', 850000, 600000, 30, 'pcs', 'active', now, now],
+      ['PRD-000004', 'KOPI-ARAB', 'Kopi Arabika Premium 250g', 'CAT-000002', 75000, 45000, 100, 'pack', 'active', now, now],
+      ['PRD-000005', 'TEH-CELUP', 'Teh Hitam Celup Kotak 25s', 'CAT-000002', 22000, 15000, 80, 'kotak', 'active', now, now],
+      ['PRD-000006', 'KERTAS-A4', 'Kertas HVS A4 80gr 1 Rim', 'CAT-000003', 55000, 42000, 60, 'rim', 'active', now, now],
+      ['PRD-000007', 'PULPEN-GEL', 'Pulpen Gel Hitam 0.5mm 1 Box', 'CAT-000003', 35000, 24000, 75, 'box', 'active', now, now]
     ];
 
-    sampleProducts.forEach(row => productSheet.appendRow(row));
-  }
+    if (productSheet.getLastRow() === 0) {
+      const productHeaders = ['id', 'code', 'name', 'category_id', 'price', 'cost_price', 'stock', 'unit', 'status', 'created_at', 'updated_at'];
+      productSheet.appendRow(productHeaders);
+      sampleProducts.forEach(row => productSheet.appendRow(row));
+    } else {
+      // Sheet already exists: ensure sample products are inserted if missing
+      Database.clearCache('Products');
+      const existingProducts = Database.findAll('Products');
+      sampleProducts.forEach(row => {
+        const found = existingProducts.find(p => p.id === row[0] || (p.code && p.code === row[1]));
+        if (!found) {
+          Database.create('Products', {
+            id: row[0],
+            code: row[1],
+            name: row[2],
+            category_id: row[3],
+            price: row[4],
+            cost_price: row[5],
+            stock: row[6],
+            unit: row[7],
+            status: row[8],
+            created_at: now,
+            updated_at: now
+          });
+        }
+      });
+    }
 
   // 3. Setup / Migrate Roles Sheet
   let roleSheet = ss.getSheetByName('Roles');
@@ -361,39 +386,46 @@ function seedWarehousesAndStocks(ss, now) {
     stockSheet.appendRow(stockHeaders);
   }
 
-  // Inisialisasi alokasi stok untuk produk yang ada jika sheet Stocks masih kosong
+  // Inisialisasi atau lengkapi alokasi stok untuk seluruh produk di setiap gudang
   Database.clearCache('Stocks');
+  Database.clearCache('Products');
+  Database.clearCache('Warehouses');
+
   const existingStocks = Database.findAll('Stocks');
-  if (existingStocks.length === 0) {
-    const products = Database.findAll('Products');
-    let seq = 1;
-    products.forEach(function(prd) {
-      const totalQty = Number(prd.stock) || 0;
-      // Bagi stok: 70% di Gudang Pusat, 30% di Toko Mall
-      const qtyPusat = Math.floor(totalQty * 0.7);
-      const qtyMall = totalQty - qtyPusat;
+  const products = Database.findAll('Products');
+  const warehouses = Database.findAll('Warehouses');
 
-      const stkId1 = Utils.generateId('STK', seq++);
-      Database.create('Stocks', {
-        id: stkId1,
-        warehouse_id: 'WH-000001',
-        product_id: prd.id,
-        quantity: qtyPusat,
-        created_at: now,
-        updated_at: now
+  let seq = existingStocks.length + 1;
+  let newStocksCount = 0;
+
+  products.forEach(function(prd) {
+    const totalQty = Number(prd.stock) || 0;
+    const qtyPusat = Math.floor(totalQty * 0.7);
+    const qtyMall = totalQty - qtyPusat;
+
+    warehouses.forEach(function(wh) {
+      const existing = existingStocks.find(function(s) {
+        return s.product_id === prd.id && s.warehouse_id === wh.id;
       });
 
-      const stkId2 = Utils.generateId('STK', seq++);
-      Database.create('Stocks', {
-        id: stkId2,
-        warehouse_id: 'WH-000002',
-        product_id: prd.id,
-        quantity: qtyMall,
-        created_at: now,
-        updated_at: now
-      });
+      if (!existing) {
+        const allocatedQty = (wh.id === 'WH-000001' || wh.code === 'GDG-JKT') ? qtyPusat : qtyMall;
+        const stkId = Utils.generateId('STK', seq++);
+        Database.create('Stocks', {
+          id: stkId,
+          warehouse_id: wh.id,
+          product_id: prd.id,
+          quantity: allocatedQty,
+          created_at: now,
+          updated_at: now
+        });
+        newStocksCount++;
+      }
     });
-    Logger.log('Initialized initial stock balance per warehouse for ' + products.length + ' products.');
+  });
+
+  if (newStocksCount > 0) {
+    Logger.log('Created ' + newStocksCount + ' stock entries across warehouses.');
   }
 
   Logger.log('Warehouses and Stocks sheets seeded/verified.');
@@ -568,6 +600,22 @@ function seedOrders(ss, now) {
 
   Logger.log('Orders and OrderItems sheets verified.');
 }
+
+/**
+ * Controller function to run seed from client UI (Admin only)
+ * @param {string} sessionToken
+ * @returns {Object} Response
+ */
+function systemSeed(sessionToken) {
+  try {
+    RBAC.authorize(sessionToken, 'users', 'create');
+    const result = seedDatabase();
+    return Response.success(result, result.message || 'Database berhasil disemai!');
+  } catch (err) {
+    return Response.error(err.message);
+  }
+}
+
 
 
 

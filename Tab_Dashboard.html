@@ -27,6 +27,16 @@
           <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
           + Tambah Produk
         </button>
+
+        <button 
+          id="btn-dashboard-seed"
+          onclick="if(confirm('Jalankan seeder untuk melengkapi katalog produk dan mengalokasikan stok di tiap gudang?')) { if(typeof Loading !== 'undefined') Loading.show(); API.system.seed().then(res => { if(res.success) { Toast.success(res.message); } else { Toast.error(res.message); } }).catch(err => Toast.error(err.message)).finally(() => { if(typeof Loading !== 'undefined') Loading.hide(); }); }" 
+          class="inline-flex items-center px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 active:bg-amber-500/40 text-amber-200 border border-amber-300/30 font-semibold text-xs sm:text-sm rounded-lg backdrop-blur-sm transition-all"
+          title="Inisialisasi Data Produk & Stok di Tiap Gudang"
+        >
+          <svg class="w-4 h-4 mr-1.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          🌱 Seed Produk & Stok Gudang
+        </button>
       </div>
     </div>
 
