@@ -1,0 +1,247 @@
+<!-- Component_Combobox.html -->
+<!-- Generic Reusable Searchable Combobox Component -->
+<script>
+/**
+ * Combobox Component
+ * Menyediakan dropdown searchable (combobox) yang fleksibel, ringan, dan responsif.
+ * Mendukung filter instan dengan mengetik, navigasi keyboard (up/down/enter/escape),
+ * serta auto-close saat klik di luar area.
+ */
+const Combobox = (function() {
+  let activeComboboxId = null;
+
+  // Tutup dropdown combobox jika klik di luar
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.gas-combobox-wrapper')) {
+      closeAll();
+    }
+  });
+
+  function closeAll() {
+    document.querySelectorAll('.gas-combobox-dropdown').forEach(dropdown => {
+      dropdown.classList.add('hidden');
+    });
+    activeComboboxId = null;
+  }
+
+  /**
+   * Render combobox ke dalam container target.
+   * @param {Object} config
+   * @param {HTMLElement|string} config.container Container DOM node atau id string
+   * @param {Array<{value: string, label: string, sublabel?: string, meta?: any}>} config.options
+   * @param {string} [config.value] Initial selected value
+   * @param {string} [config.placeholder='-- Cari atau Pilih --']
+   * @param {string} [config.name] Hidden input name
+   * @param {boolean} [config.required=false]
+   * @param {Function} [config.onChange] Callback (selectedItem) => {}
+   * @returns {Object} API controller { getValue, setValue, setOptions, focus, clear }
+   */
+  function render(config) {
+    let container = typeof config.container === 'string' 
+      ? document.getElementById(config.container) 
+      : config.container;
+      
+    if (!container) return null;
+
+    const instanceId = 'combo-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    let options = Array.isArray(config.options) ? [...config.options] : [];
+    let selectedValue = config.value || '';
+    let selectedItem = options.find(opt => String(opt.value) === String(selectedValue)) || null;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'gas-combobox-wrapper relative w-full text-xs';
+    wrapper.id = instanceId;
+
+    // 1. Hidden input untuk form submit / validasi standard
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    if (config.name) hiddenInput.name = config.name;
+    hiddenInput.value = selectedValue;
+    if (config.required) hiddenInput.required = true;
+    wrapper.appendChild(hiddenInput);
+
+    // 2. Control box (Display input + Arrow Button)
+    const controlBox = document.createElement('div');
+    controlBox.className = 'flex items-center w-full bg-white border border-slate-300 rounded-lg shadow-2xs hover:border-blue-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all cursor-pointer';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'w-full px-2.5 py-1.5 bg-transparent border-0 text-slate-800 placeholder-slate-400 text-xs focus:ring-0 focus:outline-hidden';
+    searchInput.placeholder = config.placeholder || '-- Cari atau Pilih --';
+    searchInput.autocomplete = 'off';
+    searchInput.value = selectedItem ? selectedItem.label : '';
+
+    const arrowBtn = document.createElement('button');
+    arrowBtn.type = 'button';
+    arrowBtn.className = 'px-2 py-1.5 text-slate-400 hover:text-slate-600 focus:outline-hidden shrink-0';
+    arrowBtn.innerHTML = `
+      <svg class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    `;
+
+    controlBox.appendChild(searchInput);
+    controlBox.appendChild(arrowBtn);
+    wrapper.appendChild(controlBox);
+
+    // 3. Dropdown Menu (List items)
+    const dropdown = document.createElement('div');
+    dropdown.className = 'gas-combobox-dropdown hidden absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl z-50 divide-y divide-slate-100';
+    wrapper.appendChild(dropdown);
+
+    container.innerHTML = '';
+    container.appendChild(wrapper);
+
+    function filterOptions(query) {
+      const q = (query || '').toLowerCase().trim();
+      dropdown.innerHTML = '';
+
+      const filtered = q === '' 
+        ? options 
+        : options.filter(opt => {
+            const l = (opt.label || '').toLowerCase();
+            const s = (opt.sublabel || '').toLowerCase();
+            const v = String(opt.value || '').toLowerCase();
+            return l.includes(q) || s.includes(q) || v.includes(q);
+          });
+
+      if (filtered.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'p-3 text-center text-slate-400 text-xs italic';
+        emptyDiv.innerText = 'Tidak ditemukan hasil cocok';
+        dropdown.appendChild(emptyDiv);
+        return;
+      }
+
+      filtered.forEach(opt => {
+        const itemBtn = document.createElement('button');
+        itemBtn.type = 'button';
+        const isSelected = String(opt.value) === String(hiddenInput.value);
+        itemBtn.className = `w-full text-left px-3 py-2 text-xs flex flex-col transition-colors ${
+          isSelected 
+            ? 'bg-blue-50 text-blue-700 font-semibold' 
+            : 'text-slate-700 hover:bg-slate-50'
+        }`;
+
+        let itemHtml = `<span class="truncate">${opt.label}</span>`;
+        if (opt.sublabel) {
+          itemHtml += `<span class="text-[10px] text-slate-400 font-mono mt-0.5 truncate">${opt.sublabel}</span>`;
+        }
+        itemBtn.innerHTML = itemHtml;
+
+        itemBtn.onclick = function(e) {
+          e.preventDefault();
+          selectItem(opt);
+          closeDropdown();
+        };
+
+        dropdown.appendChild(itemBtn);
+      });
+    }
+
+    function selectItem(opt) {
+      selectedItem = opt;
+      hiddenInput.value = opt ? opt.value : '';
+      searchInput.value = opt ? opt.label : '';
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+      if (typeof config.onChange === 'function') {
+        config.onChange(opt);
+      }
+    }
+
+    function openDropdown() {
+      closeAll();
+      filterOptions(searchInput.value === (selectedItem ? selectedItem.label : '') ? '' : searchInput.value);
+      dropdown.classList.remove('hidden');
+      activeComboboxId = instanceId;
+      arrowBtn.querySelector('svg')?.classList.add('rotate-180');
+    }
+
+    function closeDropdown() {
+      dropdown.classList.add('hidden');
+      if (activeComboboxId === instanceId) activeComboboxId = null;
+      arrowBtn.querySelector('svg')?.classList.remove('rotate-180');
+      // Kembalikan teks jika search tidak tuntas
+      if (selectedItem) {
+        searchInput.value = selectedItem.label;
+      } else if (!hiddenInput.value) {
+        searchInput.value = '';
+      }
+    }
+
+    // Event Listeners
+    searchInput.addEventListener('focus', function() {
+      openDropdown();
+      this.select();
+    });
+
+    searchInput.addEventListener('input', function() {
+      if (dropdown.classList.contains('hidden')) {
+        dropdown.classList.remove('hidden');
+        activeComboboxId = instanceId;
+      }
+      filterOptions(this.value);
+      // Jika input dikosongkan secara manual oleh user
+      if (this.value.trim() === '') {
+        hiddenInput.value = '';
+        selectedItem = null;
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        if (typeof config.onChange === 'function') config.onChange(null);
+      }
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeDropdown();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) openDropdown();
+        const firstBtn = dropdown.querySelector('button');
+        if (firstBtn) firstBtn.focus();
+      } else if (e.key === 'Enter') {
+        // Jika ada 1 hasil pas di dropdown, pilih
+        const btns = dropdown.querySelectorAll('button');
+        if (btns.length === 1) {
+          e.preventDefault();
+          btns[0].click();
+        }
+      }
+    });
+
+    arrowBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (dropdown.classList.contains('hidden')) {
+        openDropdown();
+        searchInput.focus();
+      } else {
+        closeDropdown();
+      }
+    });
+
+    return {
+      getValue: () => hiddenInput.value,
+      getSelectedItem: () => selectedItem,
+      setValue: (val) => {
+        const found = options.find(o => String(o.value) === String(val)) || null;
+        selectItem(found);
+      },
+      setOptions: (newOpts) => {
+        options = Array.isArray(newOpts) ? [...newOpts] : [];
+        if (hiddenInput.value) {
+          selectedItem = options.find(o => String(o.value) === String(hiddenInput.value)) || null;
+          if (selectedItem) searchInput.value = selectedItem.label;
+        }
+      },
+      clear: () => {
+        selectItem(null);
+      },
+      focus: () => searchInput.focus()
+    };
+  }
+
+  return {
+    render: render,
+    closeAll: closeAll
+  };
+})();
+</script>

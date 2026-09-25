@@ -409,7 +409,15 @@ const OrdersTab = (function() {
         </form>
       `;
 
-      window._orderPrdOptions = prdOptions;
+      window._orderPrdList = products.map(p => ({
+        value: p.id,
+        label: p.name,
+        sublabel: `${p.code || p.id} • Stok: ${p.stock || 0} ${p.unit || 'pcs'} • Rp ${(type === 'PURCHASE' ? (p.cost_price || p.price) : p.price).toLocaleString('id-ID')}`,
+        price: type === 'PURCHASE' ? (p.cost_price || p.price) : p.price,
+        stock: p.stock || 0,
+        unit: p.unit || 'pcs'
+      }));
+
       addItemRow();
     }).finally(() => {
       if (typeof Loading !== 'undefined') Loading.hide();
@@ -425,36 +433,38 @@ const OrdersTab = (function() {
     div.id = rowId;
     div.className = 'flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100';
     div.innerHTML = `
-      <div class="flex-1">
-        <select onchange="OrdersTab.onProductSelect(this, '${rowId}')" class="ord-item-product w-full p-1.5 border border-slate-200 rounded text-xs bg-white" required>
-          <option value="">-- Pilih Produk --</option>
-          ${window._orderPrdOptions || ''}
-        </select>
+      <div class="flex-1" id="${rowId}-combo-container">
+        <!-- Searchable Combobox Injected Here -->
       </div>
       <div class="w-20">
-        <input type="number" min="1" placeholder="Qty" oninput="OrdersTab.recalcTotal()" class="ord-item-qty w-full p-1.5 border border-slate-200 rounded text-xs bg-white text-right" required />
+        <input type="number" min="1" placeholder="Qty" oninput="OrdersTab.recalcTotal()" class="ord-item-qty w-full p-1.5 border border-slate-300 rounded text-xs bg-white text-right focus:border-blue-500 focus:outline-hidden" required />
       </div>
       <div class="w-28">
-        <input type="number" min="0" placeholder="Harga" oninput="OrdersTab.recalcTotal()" class="ord-item-price w-full p-1.5 border border-slate-200 rounded text-xs bg-white text-right" required />
+        <input type="number" min="0" placeholder="Harga" oninput="OrdersTab.recalcTotal()" class="ord-item-price w-full p-1.5 border border-slate-300 rounded text-xs bg-white text-right focus:border-blue-500 focus:outline-hidden" required />
       </div>
       <button type="button" onclick="document.getElementById('${rowId}').remove(); OrdersTab.recalcTotal();" class="text-red-500 hover:text-red-700 p-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
       </button>
     `;
     container.appendChild(div);
-  }
 
-  function onProductSelect(selectEl, rowId) {
-    const selectedOpt = selectEl.options[selectEl.selectedIndex];
-    const defaultPrice = selectedOpt.getAttribute('data-price') || 0;
-    const rowEl = document.getElementById(rowId);
-    if (rowEl) {
-      const priceInput = rowEl.querySelector('.ord-item-price');
-      if (priceInput && (!priceInput.value || Number(priceInput.value) === 0)) {
-        priceInput.value = defaultPrice;
-      }
+    // Inisialisasi Searchable Combobox untuk baris produk ini
+    if (typeof Combobox !== 'undefined') {
+      Combobox.render({
+        container: `${rowId}-combo-container`,
+        options: window._orderPrdList || [],
+        placeholder: '-- Ketik / Cari Nama atau Kode Produk --',
+        name: 'product_id',
+        required: true,
+        onChange: function(selected) {
+          const priceInput = div.querySelector('.ord-item-price');
+          if (priceInput && selected && selected.price !== undefined) {
+            priceInput.value = selected.price;
+          }
+          recalcTotal();
+        }
+      });
     }
-    recalcTotal();
   }
 
   function recalcTotal() {
@@ -484,22 +494,23 @@ const OrdersTab = (function() {
       return;
     }
 
-    const prdEls = document.querySelectorAll('.ord-item-product');
-    const qtyEls = document.querySelectorAll('.ord-item-qty');
-    const priceEls = document.querySelectorAll('.ord-item-price');
+    const rowEls = document.querySelectorAll('#order-items-container > div');
     const items = [];
 
-    for (let i = 0; i < prdEls.length; i++) {
-      const pId = prdEls[i].value;
-      const q = Number(qtyEls[i].value) || 0;
-      const p = Number(priceEls[i].value) || 0;
+    rowEls.forEach(row => {
+      const pInput = row.querySelector('input[name="product_id"]') || row.querySelector('.ord-item-product');
+      const qInput = row.querySelector('.ord-item-qty');
+      const prInput = row.querySelector('.ord-item-price');
+      const pId = pInput ? pInput.value : '';
+      const q = qInput ? Number(qInput.value) || 0 : 0;
+      const p = prInput ? Number(prInput.value) || 0 : 0;
       if (pId && q > 0) {
         items.push({ product_id: pId, quantity: q, price: p });
       }
-    }
+    });
 
     if (items.length === 0) {
-      Toast.show('Minimal masukkan 1 barang dengan jumlah valid.', 'warning');
+      Toast.show('Minimal masukkan 1 barang dengan memilih produk dan mengisi kuantitas.', 'warning');
       return;
     }
 

@@ -691,7 +691,14 @@ const StockTransfersTab = (function() {
         </form>
       `;
 
-      window._transferPrdOptions = prdOptions;
+      window._transferPrdList = products.map(p => ({
+        value: p.id,
+        label: p.name,
+        sublabel: `${p.code || p.id} • Total Stok: ${p.stock || 0} ${p.unit || 'pcs'}`,
+        stock: p.stock || 0,
+        unit: p.unit || 'pcs'
+      }));
+
       addItemRow();
     }).finally(() => {
       if (typeof Loading !== 'undefined') Loading.hide();
@@ -707,20 +714,27 @@ const StockTransfersTab = (function() {
     div.id = rowId;
     div.className = 'flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100';
     div.innerHTML = `
-      <div class="flex-1">
-        <select class="transfer-item-product w-full p-1.5 border border-slate-200 rounded text-xs bg-white" required>
-          <option value="">-- Pilih Produk --</option>
-          ${window._transferPrdOptions || ''}
-        </select>
+      <div class="flex-1" id="${rowId}-combo-container">
+        <!-- Searchable Combobox Injected Here -->
       </div>
       <div class="w-24">
-        <input type="number" min="1" placeholder="Qty" class="transfer-item-qty w-full p-1.5 border border-slate-200 rounded text-xs bg-white font-semibold" required />
+        <input type="number" min="1" placeholder="Qty" class="transfer-item-qty w-full p-1.5 border border-slate-300 rounded text-xs bg-white font-semibold focus:border-blue-500 focus:outline-hidden" required />
       </div>
       <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-500 hover:text-red-700 p-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
       </button>
     `;
     container.appendChild(div);
+
+    if (typeof Combobox !== 'undefined') {
+      Combobox.render({
+        container: `${rowId}-combo-container`,
+        options: window._transferPrdList || [],
+        placeholder: '-- Ketik / Cari Nama atau Kode Produk --',
+        name: 'product_id',
+        required: true
+      });
+    }
   }
 
   function submitCreate() {
@@ -738,17 +752,18 @@ const StockTransfersTab = (function() {
       return;
     }
 
-    const itemProducts = document.querySelectorAll('.transfer-item-product');
-    const itemQtys = document.querySelectorAll('.transfer-item-qty');
+    const rowEls = document.querySelectorAll('#transfer-items-container > div');
     const items = [];
 
-    for (let i = 0; i < itemProducts.length; i++) {
-      const pId = itemProducts[i].value;
-      const q = Number(itemQtys[i].value);
+    rowEls.forEach(row => {
+      const pInput = row.querySelector('input[name="product_id"]') || row.querySelector('.transfer-item-product');
+      const qInput = row.querySelector('.transfer-item-qty');
+      const pId = pInput ? pInput.value : '';
+      const q = qInput ? Number(qInput.value) || 0 : 0;
       if (pId && q > 0) {
         items.push({ product_id: pId, quantity: q });
       }
-    }
+    });
 
     if (items.length === 0) {
       Toast.show('Minimal tambahkan 1 produk dan kuantitas valid.', 'warning');
