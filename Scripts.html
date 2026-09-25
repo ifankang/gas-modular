@@ -228,8 +228,19 @@
       // Apply RBAC to UI navigation elements
       this.applyRBAC();
 
-      // Load default tab
-      this.navigate('dashboard');
+      // Restore previously active tab from localStorage or URL hash
+      let initialTab = 'dashboard';
+      try {
+        const hashTab = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
+        const savedTab = localStorage.getItem('gas_active_tab');
+        const candidate = hashTab || savedTab;
+        if (candidate && document.getElementById(`tab-${candidate}`)) {
+          initialTab = candidate;
+        }
+      } catch (e) {}
+
+      // Load initial tab (will fallback to dashboard if not allowed by RBAC)
+      this.navigate(initialTab);
     },
 
     applyRBAC: function() {
@@ -273,6 +284,8 @@
     logout: function() {
       if (confirm('Apakah Anda yakin ingin keluar?')) {
         localStorage.removeItem('gas_auth_user');
+        localStorage.removeItem('gas_active_tab');
+        try { window.location.hash = ''; } catch(e) {}
         this.currentUser = null;
         if (typeof Toast !== 'undefined') {
           Toast.info('Anda telah keluar dari sistem.');
@@ -290,6 +303,14 @@
           this.navigate(target);
         });
       });
+
+      // Listen for browser back/forward buttons
+      window.addEventListener('hashchange', () => {
+        const hashTab = window.location.hash ? window.location.hash.replace('#', '').trim() : '';
+        if (hashTab && hashTab !== this.currentTab && document.getElementById(`tab-${hashTab}`)) {
+          this.navigate(hashTab);
+        }
+      });
     },
     
     navigate: function(tabId) {
@@ -304,6 +325,14 @@
       }
 
       this.currentTab = tabId;
+
+      // Persist active tab to localStorage and URL hash
+      try {
+        localStorage.setItem('gas_active_tab', tabId);
+        if (window.location.hash !== `#${tabId}`) {
+          window.location.hash = tabId;
+        }
+      } catch (e) {}
 
       // Hide all tabs
       const tabs = document.querySelectorAll('.tab-content');
