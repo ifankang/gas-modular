@@ -423,4 +423,7 @@ const Table = (function() {
   
   return { render };
 })();
+
+// Explicitly assign to window for bulletproof global accessibility
+window.Table = Table;
 </script>
