@@ -16,18 +16,23 @@ const DriveService = {
     category = category || 'Umum';
 
     // 1. Ambil parent folder tempat Spreadsheet utama tersimpan
-    let parentFolder;
+    let parentFolder = null;
     try {
       const ssFile = DriveApp.getFileById(Config.SPREADSHEET_ID);
       const parents = ssFile.getParents();
       if (parents.hasNext()) {
         parentFolder = parents.next();
-      } else {
-        parentFolder = DriveApp.getRootFolder();
       }
     } catch (e) {
       Logger.log("Failed to get spreadsheet parent folder: " + e.message);
-      parentFolder = DriveApp.getRootFolder();
+    }
+
+    if (!parentFolder) {
+      try {
+        parentFolder = DriveApp.getRootFolder();
+      } catch (err) {
+        throw new Error("Izin akses Google Drive belum diotorisasi. Silakan jalankan otorisasi izin akun Google untuk Google Drive.");
+      }
     }
 
     // 2. Cari atau buat folder induk 'DataBridge_Attachments'
