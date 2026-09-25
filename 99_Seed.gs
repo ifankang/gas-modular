@@ -445,9 +445,17 @@ function seedTransfersAndMutations(ss, now) {
   if (!trfSheet) {
     trfSheet = ss.insertSheet('StockTransfers');
   }
-  const trfHeaders = ['id', 'transfer_no', 'date', 'source_warehouse_id', 'destination_warehouse_id', 'status', 'approved_by', 'approved_at', 'received_by', 'received_at', 'notes', 'created_at', 'updated_at'];
+  const trfHeaders = ['id', 'transfer_no', 'date', 'source_warehouse_id', 'destination_warehouse_id', 'status', 'requested_by', 'requested_at', 'approved_by', 'approved_at', 'shipped_by', 'shipped_at', 'received_by', 'received_at', 'attachment_url', 'notes', 'created_at', 'updated_at'];
   if (trfSheet.getLastRow() === 0) {
     trfSheet.appendRow(trfHeaders);
+  } else {
+    // Migrasi kolom jika belum ada
+    let currentCols = trfSheet.getRange(1, 1, 1, trfSheet.getLastColumn()).getValues()[0];
+    trfHeaders.forEach(h => {
+      if (currentCols.indexOf(h) === -1) {
+        trfSheet.getRange(1, trfSheet.getLastColumn() + 1).setValue(h);
+      }
+    });
   }
 
   // 2. Inisialisasi Sheet TransferItems
@@ -455,9 +463,16 @@ function seedTransfersAndMutations(ss, now) {
   if (!itemSheet) {
     itemSheet = ss.insertSheet('TransferItems');
   }
-  const itemHeaders = ['id', 'transfer_id', 'product_id', 'quantity', 'created_at', 'updated_at'];
+  const itemHeaders = ['id', 'transfer_id', 'product_id', 'requested_qty', 'approved_qty', 'shipped_qty', 'received_qty', 'quantity', 'item_notes', 'created_at', 'updated_at'];
   if (itemSheet.getLastRow() === 0) {
     itemSheet.appendRow(itemHeaders);
+  } else {
+    let currentCols = itemSheet.getRange(1, 1, 1, itemSheet.getLastColumn()).getValues()[0];
+    itemHeaders.forEach(h => {
+      if (currentCols.indexOf(h) === -1) {
+        itemSheet.getRange(1, itemSheet.getLastColumn() + 1).setValue(h);
+      }
+    });
   }
 
   // 3. Inisialisasi Sheet StockMutations
@@ -538,10 +553,17 @@ function seedOrders(ss, now) {
   const orderHeaders = [
     'id', 'order_no', 'type', 'date', 'destination_warehouse_id',
     'contact_name', 'total_amount', 'status', 'approved_by',
-    'approved_at', 'received_by', 'received_at', 'notes', 'created_at', 'updated_at'
+    'approved_at', 'received_by', 'received_at', 'attachment_url', 'notes', 'created_at', 'updated_at'
   ];
   if (orderSheet.getLastRow() === 0) {
     orderSheet.appendRow(orderHeaders);
+  } else {
+    let currentCols = orderSheet.getRange(1, 1, 1, orderSheet.getLastColumn()).getValues()[0];
+    orderHeaders.forEach(h => {
+      if (currentCols.indexOf(h) === -1) {
+        orderSheet.getRange(1, orderSheet.getLastColumn() + 1).setValue(h);
+      }
+    });
   }
 
   // 2. Inisialisasi Sheet OrderItems

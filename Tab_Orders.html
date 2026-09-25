@@ -264,6 +264,16 @@ const OrdersTab = (function() {
               ${ord.received_by ? `<div class="col-span-2 text-[11px] text-slate-500">Diterima Gudang: <b>${ord.received_by}</b> (${ord.received_at || '-'})</div>` : ''}
             </div>
 
+            ${ord.attachment_url ? `
+              <div class="border border-slate-200 rounded-lg p-3 bg-white">
+                <span class="text-xs font-bold text-slate-700 block mb-1.5">📸 Bukti Foto Struk / Nota / Transfer:</span>
+                <a href="${ord.attachment_url}" target="_blank" class="inline-block group relative rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-all">
+                  <img src="${ord.attachment_url}" alt="Bukti Penjualan" class="max-h-48 rounded object-cover" onerror="this.src=''; this.alt='Klik link untuk buka foto Drive';" />
+                  <span class="text-[11px] text-blue-600 block mt-1 hover:underline">Buka Foto Asli di Google Drive &rarr;</span>
+                </a>
+              </div>
+            ` : ''}
+
             <div class="border border-slate-200 rounded-lg overflow-hidden">
               <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
@@ -355,6 +365,24 @@ const OrdersTab = (function() {
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
             <textarea id="order-notes" rows="2" placeholder="Catatan transaksi..." class="w-full p-2 border border-slate-200 rounded-lg text-xs"></textarea>
+          </div>
+
+          <!-- Upload Foto Bukti Struk / Transfer Opsional -->
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block font-bold text-slate-700">📸 Foto Bukti Struk / Transfer / Serah Terima (Opsional)</label>
+              <span class="text-[10px] text-slate-400">Kompresi Otomatis</span>
+            </div>
+            <input type="file" id="order-photo-input" accept="image/*" capture="environment" onchange="OrdersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+            
+            <!-- Thumbnail Preview Box -->
+            <div id="order-photo-preview-box" class="hidden items-center space-x-3 pt-2">
+              <img id="order-photo-preview-img" src="" class="w-14 h-14 object-cover rounded-lg border border-slate-200 shadow-xs" />
+              <div>
+                <span id="order-photo-name" class="font-medium text-slate-800 text-[11px] block truncate max-w-[200px]">struk.jpg</span>
+                <button type="button" onclick="OrdersTab.clearSelectedPhoto()" class="text-rose-600 hover:underline text-[11px] font-semibold mt-0.5">Hapus Foto</button>
+              </div>
+            </div>
           </div>
 
           <div class="border-t border-slate-100 pt-3">
@@ -477,27 +505,85 @@ const OrdersTab = (function() {
 
     if (typeof Loading !== 'undefined') Loading.show();
 
-    const payload = {
-      orderData: {
-        order_no: orderNo,
-        date: orderDate,
-        destination_warehouse_id: wh,
-        contact_name: contact,
-        notes: notes
-      },
-      items: items
-    };
+    // Async upload foto jika ada
+    (async function() {
+      try {
+        let uploadedPhotoUrl = '';
+        if (window._selectedOrderPhoto && window._selectedOrderPhoto.base64Data) {
+          const uploadRes = await API.drive.uploadPhoto({
+            base64Data: window._selectedOrderPhoto.base64Data,
+            filename: `SO_${orderNo || Date.now()}_STRUK.jpg`,
+            category: 'Penjualan'
+          });
+          if (uploadRes && uploadRes.data && uploadRes.data.url) {
+            uploadedPhotoUrl = uploadRes.data.url;
+          }
+        }
 
-    const apiCall = (type === 'PURCHASE') ? API.orders.createPurchase(payload) : API.orders.createSales(payload);
+        const payload = {
+          orderData: {
+            order_no: orderNo,
+            date: orderDate,
+            destination_warehouse_id: wh,
+            contact_name: contact,
+            notes: notes,
+            attachment_url: uploadedPhotoUrl
+          },
+          items: items
+        };
 
-    apiCall
+        const apiCall = (type === 'PURCHASE') ? API.orders.createPurchase(payload) : API.orders.createSales(payload);
+
+        apiCall
+          .then(res => {
+            Toast.show(type === 'PURCHASE' ? 'Draft Purchase Order berhasil dibuat.' : 'Transaksi penjualan berhasil diselesaikan!', 'success');
+            Modal.hide();
+            loadData();
+          })
+          .catch(err => Toast.show(err.message || 'Gagal memproses pesanan.', 'error'))
+          .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      } catch (err) {
+        if (typeof Loading !== 'undefined') Loading.hide();
+        Toast.show(err.message || 'Gagal mengunggah foto struk.', 'error');
+      }
+    })();
+  }
+
+  function handlePhotoSelected(inputEl) {
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+
+    if (typeof Loading !== 'undefined') Loading.show();
+    ImageCompressor.compress(file, { maxDimension: 1200, quality: 0.75 })
       .then(res => {
-        Toast.show(type === 'PURCHASE' ? 'Draft Purchase Order berhasil dibuat.' : 'Transaksi penjualan berhasil diselesaikan!', 'success');
-        Modal.hide();
-        loadData();
+        window._selectedOrderPhoto = res;
+        const box = document.getElementById('order-photo-preview-box');
+        const img = document.getElementById('order-photo-preview-img');
+        const name = document.getElementById('order-photo-name');
+        if (box && img) {
+          img.src = res.base64Data;
+          if (name) name.innerText = `${file.name} (${Math.round(res.base64Data.length * 0.75 / 1024)} KB)`;
+          box.classList.remove('hidden');
+          box.classList.add('flex');
+        }
       })
-      .catch(err => Toast.show(err.message || 'Gagal memproses pesanan.', 'error'))
-      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      .catch(err => {
+        Toast.show(err.message || 'Gagal memproses gambar.', 'error');
+      })
+      .finally(() => {
+        if (typeof Loading !== 'undefined') Loading.hide();
+      });
+  }
+
+  function clearSelectedPhoto() {
+    window._selectedOrderPhoto = null;
+    const inputEl = document.getElementById('order-photo-input');
+    const box = document.getElementById('order-photo-preview-box');
+    if (inputEl) inputEl.value = '';
+    if (box) {
+      box.classList.add('hidden');
+      box.classList.remove('flex');
+    }
   }
 
   return {
@@ -509,6 +595,8 @@ const OrdersTab = (function() {
     addItemRow: addItemRow,
     onProductSelect: onProductSelect,
     recalcTotal: recalcTotal,
+    handlePhotoSelected: handlePhotoSelected,
+    clearSelectedPhoto: clearSelectedPhoto,
     submitOrder: submitOrder
   };
 })();

@@ -97,8 +97,9 @@ const InventoryService = {
   },
 
   /**
-   * Membuat dokumen transfer stok (Draft).
-   * Belum memotong stok fisik.
+  /**
+   * Langkah 1: SPG / Toko membuat Permintaan Barang (Stock Request).
+   * Status awal: 'requested'. Belum ada mutasi/pemotongan stok.
    *
    * @param {Object} transferData { transfer_no, date, source_warehouse_id, destination_warehouse_id, notes }
    * @param {Array} items [{ product_id, quantity }]
@@ -107,41 +108,51 @@ const InventoryService = {
    */
   createTransferDraft: function(transferData, items, user) {
     if (!transferData.source_warehouse_id || !transferData.destination_warehouse_id) {
-      throw new Error('Gudang asal dan gudang tujuan wajib dipilih.');
+      throw new Error('Gudang asal dan toko peminta wajib dipilih.');
     }
     if (transferData.source_warehouse_id === transferData.destination_warehouse_id) {
-      throw new Error('Gudang asal dan gudang tujuan tidak boleh sama.');
+      throw new Error('Gudang asal dan toko peminta tidak boleh sama.');
     }
     if (!items || !Array.isArray(items) || items.length === 0) {
-      throw new Error('Daftar barang transfer tidak boleh kosong.');
+      throw new Error('Daftar barang permintaan tidak boleh kosong.');
     }
 
     const now = new Date().toISOString();
     const payload = {
-      transfer_no: transferData.transfer_no || ('TRF-' + Date.now()),
+      transfer_no: transferData.transfer_no || ('REQ-' + Date.now()),
       date: transferData.date || now.split('T')[0],
       source_warehouse_id: transferData.source_warehouse_id,
       destination_warehouse_id: transferData.destination_warehouse_id,
-      status: 'draft',
+      status: 'requested', // Langkah 1: Diajukan
       notes: transferData.notes || '',
+      requested_by: user ? (user.name || user.email || 'SPG') : 'SPG',
+      requested_at: now,
       approved_by: '',
       approved_at: '',
+      shipped_by: '',
+      shipped_at: '',
       received_by: '',
-      received_at: ''
+      received_at: '',
+      attachment_url: ''
     };
 
     const transfer = Repository.create(StockTransferSchema, payload);
 
-    // Simpan item-item transfer
+    // Simpan item-item transfer dengan requested_qty
     const savedItems = items.map(item => {
       const q = Number(item.quantity);
       if (isNaN(q) || q <= 0) {
-        throw new Error('Jumlah barang pada transfer harus berupa angka positif.');
+        throw new Error('Jumlah barang pada permintaan harus berupa angka positif.');
       }
       return Repository.create(TransferItemSchema, {
         transfer_id: transfer.id,
         product_id: item.product_id,
-        quantity: q
+        requested_qty: q,
+        approved_qty: q,
+        shipped_qty: q,
+        received_qty: q,
+        quantity: q,
+        item_notes: item.notes || ''
       });
     });
 
@@ -152,72 +163,53 @@ const InventoryService = {
   },
 
   /**
-   * Langkah 1: Approve Kirim by Admin / Manager.
-   * - Memvalidasi ketersediaan stok fisik di Gudang Asal.
-   * - MEMOTONG stok fisik seketika dari Gudang Asal.
-   * - Mencatat mutasi TRANSFER_OUT.
-   * - Mengubah status transfer menjadi 'approved_shipped' (in-transit).
+   * Langkah 2: Review & Approve by Admin / Store Manager.
+   * Admin dapat menyetujui seluruhnya/sebagian, atau mengubah Qty per item, serta memberi catatan alasan.
+   * Status: 'approved'. Belum memotong stok fisik gudang.
    *
    * @param {string} transferId
+   * @param {Object} payload { admin_notes, items: [{ id, approved_qty, notes }] }
    * @param {Object} user
    * @returns {Object}
    */
-  approveTransferSend: function(transferId, user) {
+  reviewApproveTransfer: function(transferId, payload, user) {
     const lock = LockService.getScriptLock();
     try {
       lock.waitLock(30000);
 
       const transfer = Repository.findById(StockTransferSchema, transferId);
       if (!transfer) {
-        throw new Error(`Dokumen transfer ${transferId} tidak ditemukan.`);
+        throw new Error(`Dokumen permintaan ${transferId} tidak ditemukan.`);
       }
-      if (transfer.status !== 'draft') {
-        throw new Error(`Dokumen transfer tidak dapat disetujui kirim karena berstatus "${transfer.status}". Hanya status "draft" yang dapat dikirim.`);
-      }
-
-      // Ambil items transfer
-      const allItems = Repository.findAll(TransferItemSchema);
-      const items = allItems.filter(it => String(it.transfer_id) === String(transferId));
-      if (items.length === 0) {
-        throw new Error('Tidak ada barang di dalam dokumen transfer ini.');
+      if (transfer.status !== 'requested') {
+        throw new Error(`Dokumen tidak dapat disetujui karena berstatus "${transfer.status}". Hanya status "requested" yang dapat disetujui.`);
       }
 
-      // 1. Validasi saldo fisik seluruh item di gudang asal
-      items.forEach(it => {
-        const bal = StockService.getBalance(transfer.source_warehouse_id, it.product_id);
-        const reqQty = Number(it.quantity) || 0;
-        if (bal < reqQty) {
-          throw new Error(`Stok produk ${it.product_id} tidak mencukupi di gudang asal. Saldo: ${bal}, Dibutuhkan: ${reqQty}.`);
-        }
-      });
-
-      // 2. Potong stok di Gudang Asal & Catat Mutasi TRANSFER_OUT
       const now = new Date().toISOString();
-      items.forEach(it => {
-        const reqQty = Number(it.quantity) || 0;
-        const bal = StockService.getBalance(transfer.source_warehouse_id, it.product_id);
-        const newBal = bal - reqQty;
 
-        StockService.setBalance(transfer.source_warehouse_id, it.product_id, newBal);
-
-        Repository.create(StockMutationSchema, {
-          date: now.split('T')[0],
-          type: 'TRANSFER_OUT',
-          reference_type: 'TRANSFER',
-          reference_id: transfer.transfer_no || transfer.id,
-          warehouse_id: transfer.source_warehouse_id,
-          product_id: it.product_id,
-          quantity: reqQty,
-          notes: `Pindah ke gudang ${transfer.destination_warehouse_id} (Kirim by ${user.name || user.email})`,
-          created_by: user.name || user.email || 'Admin'
+      // Update kuantitas approved pada item
+      if (payload && Array.isArray(payload.items)) {
+        payload.items.forEach(it => {
+          const itemRecord = Repository.findById(TransferItemSchema, it.id);
+          if (itemRecord && String(itemRecord.transfer_id) === String(transferId)) {
+            const appQty = Number(it.approved_qty) >= 0 ? Number(it.approved_qty) : (Number(itemRecord.requested_qty) || 0);
+            Repository.update(TransferItemSchema, it.id, {
+              approved_qty: appQty,
+              shipped_qty: appQty, // Default picker target
+              received_qty: appQty,
+              quantity: appQty,
+              item_notes: it.notes || itemRecord.item_notes || ''
+            });
+          }
         });
-      });
+      }
 
-      // 3. Update status transfer -> approved_shipped
+      // Update status transfer -> approved
       const updatedTransfer = Repository.update(StockTransferSchema, transferId, {
-        status: 'approved_shipped',
+        status: 'approved',
         approved_by: user.name || user.email || 'Admin',
-        approved_at: now
+        approved_at: now,
+        notes: (transfer.notes ? transfer.notes + "\n" : "") + (payload.admin_notes ? `[Admin: ${payload.admin_notes}]` : "")
       });
 
       return updatedTransfer;
@@ -227,16 +219,17 @@ const InventoryService = {
   },
 
   /**
-   * Langkah 2: Terima Barang by SPG / Staff Toko di Gudang Tujuan.
-   * - MENAMBAH stok fisik ke Gudang Tujuan.
-   * - Mencatat mutasi TRANSFER_IN.
-   * - Mengubah status transfer menjadi 'received' (completed).
+   * Langkah 3: Bagian Picker / Gudang Kemas & Kirim Barang.
+   * Picker memasukkan shipped_qty sesuai barang fisik yang ada, memberi catatan packing.
+   * MEMOTONG stok fisik dari Gudang Asal & Mencatat TRANSFER_OUT.
+   * Status: 'shipped' (In-Transit).
    *
    * @param {string} transferId
+   * @param {Object} payload { picker_notes, items: [{ id, shipped_qty, notes }] }
    * @param {Object} user
    * @returns {Object}
    */
-  receiveTransfer: function(transferId, user) {
+  dispatchShippedTransfer: function(transferId, payload, user) {
     const lock = LockService.getScriptLock();
     try {
       lock.waitLock(30000);
@@ -245,8 +238,8 @@ const InventoryService = {
       if (!transfer) {
         throw new Error(`Dokumen transfer ${transferId} tidak ditemukan.`);
       }
-      if (transfer.status !== 'approved_shipped') {
-        throw new Error(`Dokumen transfer tidak dapat diterima karena berstatus "${transfer.status}". Barang harus berstatus "approved_shipped" terlebih dahulu.`);
+      if (transfer.status !== 'approved' && transfer.status !== 'draft') {
+        throw new Error(`Dokumen tidak dapat dikirim karena berstatus "${transfer.status}". Dokumen harus berstatus "approved" terlebih dahulu.`);
       }
 
       // Ambil items transfer
@@ -256,15 +249,124 @@ const InventoryService = {
         throw new Error('Tidak ada barang di dalam dokumen transfer ini.');
       }
 
-      // 1. Tambah stok di Gudang Tujuan & Catat Mutasi TRANSFER_IN
+      // Mapping inputan picker jika ada
+      const inputMap = {};
+      if (payload && Array.isArray(payload.items)) {
+        payload.items.forEach(it => { inputMap[it.id] = it; });
+      }
+
+      // 1. Validasi saldo fisik di Gudang Asal
+      items.forEach(it => {
+        const inp = inputMap[it.id];
+        const shipQty = inp && Number(inp.shipped_qty) >= 0 ? Number(inp.shipped_qty) : (Number(it.approved_qty) || Number(it.quantity) || 0);
+        const bal = StockService.getBalance(transfer.source_warehouse_id, it.product_id);
+        if (bal < shipQty) {
+          throw new Error(`Stok fisik produk ${it.product_id} tidak mencukupi di gudang asal. Saldo: ${bal}, Akan Dikirim: ${shipQty}.`);
+        }
+      });
+
+      // 2. Potong stok di Gudang Asal & Catat Mutasi TRANSFER_OUT
       const now = new Date().toISOString();
       items.forEach(it => {
-        const reqQty = Number(it.quantity) || 0;
-        const bal = StockService.getBalance(transfer.destination_warehouse_id, it.product_id);
-        const newBal = bal + reqQty;
+        const inp = inputMap[it.id];
+        const shipQty = inp && Number(inp.shipped_qty) >= 0 ? Number(inp.shipped_qty) : (Number(it.approved_qty) || Number(it.quantity) || 0);
+        const bal = StockService.getBalance(transfer.source_warehouse_id, it.product_id);
+        const newBal = bal - shipQty;
 
+        // Potong saldo
+        StockService.setBalance(transfer.source_warehouse_id, it.product_id, newBal);
+
+        // Update item record
+        Repository.update(TransferItemSchema, it.id, {
+          shipped_qty: shipQty,
+          received_qty: shipQty,
+          quantity: shipQty,
+          item_notes: (inp && inp.notes) ? inp.notes : it.item_notes
+        });
+
+        // Catat mutasi
+        Repository.create(StockMutationSchema, {
+          date: now.split('T')[0],
+          type: 'TRANSFER_OUT',
+          reference_type: 'TRANSFER',
+          reference_id: transfer.transfer_no || transfer.id,
+          warehouse_id: transfer.source_warehouse_id,
+          product_id: it.product_id,
+          quantity: shipQty,
+          notes: `Kirim ke toko ${transfer.destination_warehouse_id} (Picker: ${user.name || user.email})`,
+          created_by: user.name || user.email || 'Picker'
+        });
+      });
+
+      // 3. Update status transfer -> shipped (In-Transit)
+      const updatedTransfer = Repository.update(StockTransferSchema, transferId, {
+        status: 'shipped',
+        shipped_by: user.name || user.email || 'Picker',
+        shipped_at: now,
+        notes: (transfer.notes ? transfer.notes + "\n" : "") + (payload.picker_notes ? `[Picker: ${payload.picker_notes}]` : "")
+      });
+
+      return updatedTransfer;
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  /**
+   * Langkah 4: SPG / Toko Penerima Cek Fisik & Konfirmasi Terima.
+   * SPG mengisi received_qty riil, receiver_notes (jika ada selisih/rusak), dan attachment_url (foto bukti opsional).
+   * MENAMBAH stok fisik ke Gudang/Toko Tujuan sebesar received_qty & Mencatat TRANSFER_IN.
+   * Status: 'received'.
+   *
+   * @param {string} transferId
+   * @param {Object} payload { receiver_notes, attachment_url, items: [{ id, received_qty, notes }] }
+   * @param {Object} user
+   * @returns {Object}
+   */
+  confirmReceiveTransfer: function(transferId, payload, user) {
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(30000);
+
+      const transfer = Repository.findById(StockTransferSchema, transferId);
+      if (!transfer) {
+        throw new Error(`Dokumen transfer ${transferId} tidak ditemukan.`);
+      }
+      if (transfer.status !== 'shipped' && transfer.status !== 'approved_shipped') {
+        throw new Error(`Dokumen transfer tidak dapat diterima karena berstatus "${transfer.status}". Barang harus berstatus "shipped" terlebih dahulu.`);
+      }
+
+      // Ambil items transfer
+      const allItems = Repository.findAll(TransferItemSchema);
+      const items = allItems.filter(it => String(it.transfer_id) === String(transferId));
+      if (items.length === 0) {
+        throw new Error('Tidak ada barang di dalam dokumen transfer ini.');
+      }
+
+      // Mapping inputan penerima
+      const inputMap = {};
+      if (payload && Array.isArray(payload.items)) {
+        payload.items.forEach(it => { inputMap[it.id] = it; });
+      }
+
+      // 1. Tambah stok di Toko Tujuan & Catat Mutasi TRANSFER_IN
+      const now = new Date().toISOString();
+      items.forEach(it => {
+        const inp = inputMap[it.id];
+        const recvQty = inp && Number(inp.received_qty) >= 0 ? Number(inp.received_qty) : (Number(it.shipped_qty) || Number(it.quantity) || 0);
+        const bal = StockService.getBalance(transfer.destination_warehouse_id, it.product_id);
+        const newBal = bal + recvQty;
+
+        // Tambah saldo toko tujuan
         StockService.setBalance(transfer.destination_warehouse_id, it.product_id, newBal);
 
+        // Update item record dengan received_qty aktual
+        Repository.update(TransferItemSchema, it.id, {
+          received_qty: recvQty,
+          item_notes: (inp && inp.notes) ? inp.notes : it.item_notes
+        });
+
+        // Catat mutasi masuk
         Repository.create(StockMutationSchema, {
           date: now.split('T')[0],
           type: 'TRANSFER_IN',
@@ -272,8 +374,8 @@ const InventoryService = {
           reference_id: transfer.transfer_no || transfer.id,
           warehouse_id: transfer.destination_warehouse_id,
           product_id: it.product_id,
-          quantity: reqQty,
-          notes: `Diterima dari gudang ${transfer.source_warehouse_id} (Diterima oleh ${user.name || user.email})`,
+          quantity: recvQty,
+          notes: `Diterima dari ${transfer.source_warehouse_id} (Diterima oleh ${user.name || user.email})`,
           created_by: user.name || user.email || 'SPG'
         });
       });
@@ -282,13 +384,26 @@ const InventoryService = {
       const updatedTransfer = Repository.update(StockTransferSchema, transferId, {
         status: 'received',
         received_by: user.name || user.email || 'SPG',
-        received_at: now
+        received_at: now,
+        attachment_url: payload.attachment_url || transfer.attachment_url || '',
+        notes: (transfer.notes ? transfer.notes + "\n" : "") + (payload.receiver_notes ? `[Toko: ${payload.receiver_notes}]` : "")
       });
 
       return updatedTransfer;
     } finally {
       lock.releaseLock();
     }
+  },
+
+  /**
+   * Helper alias lama untuk backwards compatibility
+   */
+  approveTransferSend: function(transferId, user) {
+    return this.dispatchShippedTransfer(transferId, {}, user);
+  },
+
+  receiveTransfer: function(transferId, user) {
+    return this.confirmReceiveTransfer(transferId, {}, user);
   },
 
   /**

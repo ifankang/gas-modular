@@ -200,24 +200,25 @@ const StockTransferSchema = {
   idPrefix: 'TRF',
   columns: [
     { key: 'id', label: 'ID', type: 'text' },
-    { key: 'transfer_no', label: 'No. Transfer', type: 'badge', searchable: true, sortable: true },
+    { key: 'transfer_no', label: 'No. Permintaan / Transfer', type: 'badge', searchable: true, sortable: true },
     { key: 'date', label: 'Tanggal', type: 'date', sortable: true },
     { key: 'source_warehouse_id', label: 'Gudang Asal', type: 'badge', searchable: true },
-    { key: 'destination_warehouse_id', label: 'Gudang Tujuan', type: 'badge', searchable: true },
+    { key: 'destination_warehouse_id', label: 'Toko Peminta', type: 'badge', searchable: true },
     { key: 'status', label: 'Status', type: 'badge' },
+    { key: 'requested_by', label: 'Diajukan Oleh', type: 'text' },
     { key: 'approved_by', label: 'Disetujui Oleh', type: 'text' },
-    { key: 'approved_at', label: 'Disetujui Pada', type: 'date' },
+    { key: 'shipped_by', label: 'Dikirim Oleh', type: 'text' },
     { key: 'received_by', label: 'Diterima Oleh', type: 'text' },
-    { key: 'received_at', label: 'Diterima Pada', type: 'date' },
+    { key: 'attachment_url', label: 'Bukti Foto', type: 'link' },
     { key: 'notes', label: 'Catatan', type: 'text' },
     { key: 'created_at', label: 'Dibuat', type: 'date' }
   ],
   form: {
     fields: [
-      { key: 'transfer_no', label: 'No. Referensi Transfer', type: 'text', required: true },
-      { key: 'source_warehouse_id', label: 'Gudang Asal', type: 'select', options: [], required: true },
-      { key: 'destination_warehouse_id', label: 'Gudang Tujuan', type: 'select', options: [], required: true },
-      { key: 'notes', label: 'Catatan Pengiriman', type: 'textarea' }
+      { key: 'transfer_no', label: 'No. Referensi Permintaan', type: 'text', required: true },
+      { key: 'source_warehouse_id', label: 'Gudang Asal (Penyedia Stok)', type: 'select', options: [], required: true },
+      { key: 'destination_warehouse_id', label: 'Toko Peminta (Tujuan Penerima)', type: 'select', options: [], required: true },
+      { key: 'notes', label: 'Catatan Permintaan Barang', type: 'textarea' }
     ]
   }
 };
@@ -231,7 +232,12 @@ const TransferItemSchema = {
     { key: 'id', label: 'ID', type: 'text' },
     { key: 'transfer_id', label: 'ID Transfer', type: 'badge', searchable: true },
     { key: 'product_id', label: 'ID Produk', type: 'badge', searchable: true },
-    { key: 'quantity', label: 'Jumlah Kirim', type: 'number', sortable: true },
+    { key: 'requested_qty', label: 'Minta (SPG)', type: 'number', sortable: true },
+    { key: 'approved_qty', label: 'Disetujui (Admin)', type: 'number', sortable: true },
+    { key: 'shipped_qty', label: 'Dikirim (Picker)', type: 'number', sortable: true },
+    { key: 'received_qty', label: 'Diterima (SPG)', type: 'number', sortable: true },
+    { key: 'quantity', label: 'Qty', type: 'number', sortable: true },
+    { key: 'item_notes', label: 'Keterangan Item', type: 'text' },
     { key: 'created_at', label: 'Dibuat', type: 'date' }
   ],
   form: {
@@ -296,6 +302,7 @@ const OrderSchema = {
     { key: 'approved_at', label: 'Disetujui Pada', type: 'date' },
     { key: 'received_by', label: 'Diterima Oleh', type: 'text' },
     { key: 'received_at', label: 'Diterima Pada', type: 'date' },
+    { key: 'attachment_url', label: 'Bukti Foto / Struk', type: 'link' },
     { key: 'notes', label: 'Catatan', type: 'text' },
     { key: 'created_at', label: 'Dibuat', type: 'date' }
   ],

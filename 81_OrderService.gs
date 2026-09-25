@@ -276,6 +276,7 @@ const OrderService = {
         approved_at: now,
         received_by: '',
         received_at: '',
+        attachment_url: orderData.attachment_url || '',
         notes: orderData.notes || '',
         created_by: user.name || user.email || 'Staff'
       };

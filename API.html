@@ -113,12 +113,19 @@
       list: () => API.call('transfersList'),
       get: (id) => API.call('transfersGet', id),
       create: (payload) => API.call('transfersCreate', payload),
+      reviewApprove: (id, payload) => API.call('transfersReviewApprove', id, payload),
+      dispatchShip: (id, payload) => API.call('transfersDispatchShip', id, payload),
+      confirmReceive: (id, payload) => API.call('transfersConfirmReceive', id, payload),
       approveSend: (id) => API.call('transfersApproveSend', id),
       receive: (id) => API.call('transfersReceive', id)
     },
 
     mutations: {
       list: (filter) => API.call('mutationsList', filter)
+    },
+
+    drive: {
+      uploadPhoto: (payload) => API.call('driveUploadPhoto', payload)
     },
 
     reports: {

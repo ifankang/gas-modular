@@ -4,7 +4,7 @@
       <span class="text-xl">📦</span>
       <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Permintaan Barang & Pindah Gudang</h1>
     </div>
-    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">SPG/Toko meminta pasokan barang &bull; Persetujuan kirim dari Gudang Pusat &bull; Konfirmasi terima di Toko</p>
+    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Alur 4-Langkah: SPG Minta &bull; Admin Review Qty &bull; Picker Kirim Fisik &bull; SPG Cek & Terima Barang</p>
   </div>
   <!-- Desktop Add Button -->
   <button id="btn-add-transfer" onclick="StockTransfersTab.openCreateModal()" class="app-desktop-inline items-center space-x-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all">
@@ -18,7 +18,7 @@
   id="fab-add-transfer"
   onclick="StockTransfersTab.openCreateModal()" 
   class="app-mobile-only fixed bottom-20 right-4 z-40 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
-  title="Buat Transfer Cepat"
+  title="Ajukan Permintaan Cepat"
 >
   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
 </button>
@@ -65,7 +65,6 @@ const StockTransfersTab = (function() {
   }
 
   function loadData() {
-    updateAccessUI();
     if (typeof Loading !== 'undefined') Loading.show();
 
     API.transfers.list()
@@ -83,16 +82,14 @@ const StockTransfersTab = (function() {
             label: 'Detail',
             className: 'inline-flex items-center px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition-colors',
             icon: '<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>'
+          },
+          {
+            name: 'step-action',
+            label: 'Proses',
+            className: 'inline-flex items-center px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-md border border-blue-200 transition-colors',
+            icon: '<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
           }
         ];
-
-        // Tombol kontekstual aksi persetujuan
-        actions.push({
-          name: 'step-action',
-          label: 'Aksi Status',
-          className: 'inline-flex items-center px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-md border border-blue-200 transition-colors',
-          icon: '<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
-        });
 
         Table.render({
           containerId: tableContainerId,
@@ -124,52 +121,34 @@ const StockTransfersTab = (function() {
 
   function handleStatusWorkflow(row) {
     const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
-    const canApprove = typeof Auth !== 'undefined' && Auth.can('transfers', 'approve');
-    const canReceive = typeof Auth !== 'undefined' && Auth.can('transfers', 'receive');
+    const role = (user && user.role ? user.role : '').toLowerCase();
+    const isAdminOrManager = role === 'admin' || role === 'manager';
 
-    if (row.status === 'draft') {
-      if (!canApprove) {
-        Toast.show('Hanya Admin atau Manager yang dapat menyetujui pengiriman barang (Approve Kirim).', 'warning');
+    if (row.status === 'requested' || row.status === 'draft') {
+      // Langkah 2: Admin/Manager Review & Setujui
+      if (!isAdminOrManager) {
+        Toast.show('Hanya Admin atau Store Manager yang dapat meninjau & menyetujui permintaan barang.', 'warning');
         return;
       }
-      if (confirm(`Setujui pengiriman dokumen ${row.transfer_no || row.id}? Saldo stok di gudang asal akan langsung dipotong.`)) {
-        if (typeof Loading !== 'undefined') Loading.show();
-        API.transfers.approveSend(row.id)
-          .then(res => {
-            Toast.show('Pengiriman disetujui. Status barang: In-Transit.', 'success');
-            loadData();
-          })
-          .catch(err => {
-            Toast.show(err.message || 'Gagal menyetujui transfer.', 'error');
-          })
-          .finally(() => {
-            if (typeof Loading !== 'undefined') Loading.hide();
-          });
-      }
-    } else if (row.status === 'approved_shipped') {
-      if (!canReceive) {
-        Toast.show('Hanya SPG atau Staff di gudang tujuan yang dapat mengonfirmasi penerimaan barang.', 'warning');
+      openReviewApproveModal(row);
+    } else if (row.status === 'approved') {
+      // Langkah 3: Bagian Gudang / Picker Kemas & Kirim
+      if (!isAdminOrManager && role !== 'staff') {
+        Toast.show('Hanya Admin atau Bagian Gudang/Picker yang dapat mengemas dan mengirim barang.', 'warning');
         return;
       }
-      if (confirm(`Konfirmasi penerimaan dokumen ${row.transfer_no || row.id}? Saldo stok di gudang tujuan akan langsung bertambah.`)) {
-        if (typeof Loading !== 'undefined') Loading.show();
-        API.transfers.receive(row.id)
-          .then(res => {
-            Toast.show('Barang berhasil diterima! Saldo stok gudang tujuan telah diperbarui.', 'success');
-            loadData();
-          })
-          .catch(err => {
-            Toast.show(err.message || 'Gagal memproses penerimaan transfer.', 'error');
-          })
-          .finally(() => {
-            if (typeof Loading !== 'undefined') Loading.hide();
-          });
-      }
+      openDispatchShipModal(row);
+    } else if (row.status === 'shipped' || row.status === 'approved_shipped') {
+      // Langkah 4: SPG / Toko Cek & Terima Barang
+      openConfirmReceiveModal(row);
     } else if (row.status === 'received') {
-      Toast.show('Dokumen transfer ini sudah selesai (Received).', 'info');
+      Toast.show('Dokumen permintaan ini sudah selesai dan stok telah diverifikasi masuk.', 'info');
     }
   }
 
+  /**
+   * MODAL DETAIL KOMPREHENSIF (Menampilkan audit 4 kolom dan bukti foto)
+   */
   function openDetailModal(transfer) {
     if (typeof Loading !== 'undefined') Loading.show();
 
@@ -181,60 +160,89 @@ const StockTransfersTab = (function() {
 
         let itemsHtml = '';
         if (items.length === 0) {
-          itemsHtml = '<tr><td colspan="3" class="py-3 text-center text-slate-400">Tidak ada item tercatat.</td></tr>';
+          itemsHtml = '<tr><td colspan="6" class="py-3 text-center text-slate-400">Tidak ada item tercatat.</td></tr>';
         } else {
           items.forEach((it, idx) => {
             const prd = productCache.find(p => p.id === it.product_id) || {};
+            const req = Number(it.requested_qty) || Number(it.quantity) || 0;
+            const app = Number(it.approved_qty) !== undefined && it.approved_qty !== '' ? Number(it.approved_qty) : req;
+            const shp = Number(it.shipped_qty) !== undefined && it.shipped_qty !== '' ? Number(it.shipped_qty) : app;
+            const rcv = Number(it.received_qty) !== undefined && it.received_qty !== '' ? Number(it.received_qty) : shp;
+
             itemsHtml += `
               <tr class="border-b border-slate-100">
                 <td class="py-2.5 px-3 text-slate-600 font-mono text-xs">${idx + 1}</td>
                 <td class="py-2.5 px-3">
                   <span class="font-semibold text-slate-800 text-sm block">${prd.name || it.product_id}</span>
                   <span class="text-[11px] text-slate-400 font-mono">${prd.code || it.product_id}</span>
+                  ${it.item_notes ? `<span class="text-[11px] text-amber-600 block mt-0.5 italic">Catatan: ${it.item_notes}</span>` : ''}
                 </td>
-                <td class="py-2.5 px-3 text-right font-bold text-slate-900 font-mono text-sm">
-                  ${Number(it.quantity).toLocaleString('id-ID')} <span class="text-xs text-slate-500 font-normal">${prd.unit || 'pcs'}</span>
-                </td>
+                <td class="py-2.5 px-3 text-center font-mono text-xs font-semibold text-slate-600">${req}</td>
+                <td class="py-2.5 px-3 text-center font-mono text-xs font-semibold text-blue-600">${t.status === 'requested' ? '-' : app}</td>
+                <td class="py-2.5 px-3 text-center font-mono text-xs font-semibold text-purple-600">${(t.status === 'requested' || t.status === 'approved') ? '-' : shp}</td>
+                <td class="py-2.5 px-3 text-center font-mono text-xs font-bold ${rcv < shp ? 'text-rose-600' : 'text-emerald-700'}">${t.status === 'received' ? rcv : '-'}</td>
               </tr>
             `;
           });
         }
 
         const modalBody = Modal.create({
-          title: `Detail Transfer: ${t.transfer_no || t.id}`,
+          title: `Detail Permintaan: ${t.transfer_no || t.id}`,
           onClose: () => {}
         });
 
         modalBody.innerHTML = `
           <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-lg text-xs border border-slate-100">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-lg text-xs border border-slate-100">
               <div>
                 <span class="text-slate-400 block">Gudang Asal:</span>
                 <span class="font-bold text-slate-800">${t.source_warehouse_id}</span>
               </div>
               <div>
-                <span class="text-slate-400 block">Gudang Tujuan:</span>
+                <span class="text-slate-400 block">Toko Peminta:</span>
                 <span class="font-bold text-slate-800">${t.destination_warehouse_id}</span>
               </div>
               <div>
-                <span class="text-slate-400 block">Tanggal Pengajuan:</span>
+                <span class="text-slate-400 block">Tanggal:</span>
                 <span class="font-semibold text-slate-700">${t.date || '-'}</span>
               </div>
               <div>
                 <span class="text-slate-400 block">Status:</span>
-                <span class="gas-badge ${t.status === 'received' ? 'gas-badge-success' : (t.status === 'approved_shipped' ? 'gas-badge-primary' : 'gas-badge-neutral')}">${t.status}</span>
+                <span class="gas-badge ${t.status === 'received' ? 'gas-badge-success' : (t.status === 'shipped' ? 'gas-badge-primary' : 'gas-badge-warning')}">${t.status}</span>
               </div>
-              ${t.approved_by ? `<div class="col-span-2 text-[11px] text-slate-500">Disetujui Kirim: <b>${t.approved_by}</b> (${t.approved_at || '-'})</div>` : ''}
-              ${t.received_by ? `<div class="col-span-2 text-[11px] text-slate-500">Diterima: <b>${t.received_by}</b> (${t.received_at || '-'})</div>` : ''}
             </div>
 
+            <!-- Log Catatan Alur -->
+            <div class="bg-amber-50/50 border border-amber-100 p-3 rounded-lg text-xs space-y-1 text-slate-700">
+              ${t.requested_by ? `<div>📝 Diajukan oleh: <b>${t.requested_by}</b> (${t.requested_at || t.created_at || '-'})</div>` : ''}
+              ${t.approved_by ? `<div>⚖️ Disetujui oleh: <b>${t.approved_by}</b> (${t.approved_at || '-'})</div>` : ''}
+              ${t.shipped_by ? `<div>📦 Dikirim oleh (Picker): <b>${t.shipped_by}</b> (${t.shipped_at || '-'})</div>` : ''}
+              ${t.received_by ? `<div>✅ Diterima oleh: <b>${t.received_by}</b> (${t.received_at || '-'})</div>` : ''}
+              ${t.notes ? `<div class="pt-1.5 border-t border-amber-200/60 text-slate-600"><b>Catatan:</b><br/>${t.notes.replace(/\n/g, '<br/>')}</div>` : ''}
+            </div>
+
+            <!-- Bukti Foto jika ada -->
+            ${t.attachment_url ? `
+              <div class="border border-slate-200 rounded-lg p-3 bg-white">
+                <span class="text-xs font-bold text-slate-700 block mb-2">📸 Bukti Foto Penerimaan / Kondisi Barang:</span>
+                <a href="${t.attachment_url}" target="_blank" class="inline-block group relative rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-all">
+                  <img src="${t.attachment_url}" alt="Bukti Foto" class="max-h-48 rounded object-cover" onerror="this.src=''; this.alt='Klik link untuk buka foto Drive';" />
+                  <span class="text-[11px] text-blue-600 block mt-1 hover:underline">Buka Foto Asli di Google Drive &rarr;</span>
+                </a>
+              </div>
+            ` : ''}
+
+            <!-- Tabel Kuantitas Audit -->
             <div class="border border-slate-200 rounded-lg overflow-hidden">
               <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                   <tr>
                     <th class="py-2.5 px-3 w-8">#</th>
                     <th class="py-2.5 px-3">Produk</th>
-                    <th class="py-2.5 px-3 text-right">Kuantitas</th>
+                    <th class="py-2.5 px-3 text-center">Minta</th>
+                    <th class="py-2.5 px-3 text-center">Acc Admin</th>
+                    <th class="py-2.5 px-3 text-center">Kirim Picker</th>
+                    <th class="py-2.5 px-3 text-center">Terima SPG</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -251,20 +259,374 @@ const StockTransfersTab = (function() {
           </div>
         `;
       })
+      .catch(err => Toast.show(err.message || 'Gagal memuat detail transfer.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  /**
+   * LANGKAH 2: MODAL ADMIN REVIEW & APPROVE (Ubah Qty & Beri Catatan)
+   */
+  function openReviewApproveModal(transfer) {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.transfers.get(transfer.id)
+      .then(res => {
+        const data = res.data || res;
+        const items = data.items || [];
+        const t = data.transfer || transfer;
+
+        let itemInputs = items.map((it, idx) => {
+          const prd = productCache.find(p => p.id === it.product_id) || {};
+          const reqQty = Number(it.requested_qty) || Number(it.quantity) || 0;
+          return `
+            <div class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-slate-800">${prd.name || it.product_id} (${prd.code || ''})</span>
+                <span class="text-slate-500">Minta SPG: <b>${reqQty} ${prd.unit || 'pcs'}</b></span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Qty Disetujui *</label>
+                  <input type="number" min="0" id="app-qty-${it.id}" value="${reqQty}" required class="w-full p-1.5 border border-slate-200 rounded bg-white text-xs font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Alasan/Catatan Item</label>
+                  <input type="text" id="app-notes-${it.id}" placeholder="Misal: Stok pusat terbatas" class="w-full p-1.5 border border-slate-200 rounded bg-white text-xs" />
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const modalBody = Modal.create({
+          title: `⚖️ Review & Setujui Permintaan: ${t.transfer_no || t.id}`,
+          onClose: () => {}
+        });
+
+        modalBody.innerHTML = `
+          <form id="form-review-approve" onsubmit="event.preventDefault(); StockTransfersTab.submitReviewApprove('${t.id}');" class="space-y-4 text-xs">
+            <p class="text-slate-500">Sesuaikan kuantitas yang disetujui untuk dikirimkan oleh gudang pusat:</p>
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              ${itemInputs}
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Catatan Persetujuan Admin (Alasan/Instruksi ke Picker)</label>
+              <textarea id="admin-overall-notes" rows="2" placeholder="Catatan untuk bagian picker gudang..." class="w-full p-2 border border-slate-200 rounded-lg text-xs"></textarea>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+              <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-sm">
+                Setujui & Teruskan ke Picker &rarr;
+              </button>
+            </div>
+          </form>
+        `;
+        window._currentReviewItems = items;
+      })
+      .catch(err => Toast.show(err.message || 'Gagal memuat form review.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  function submitReviewApprove(transferId) {
+    const items = window._currentReviewItems || [];
+    const itemPayload = items.map(it => {
+      const qtyInput = document.getElementById(`app-qty-${it.id}`);
+      const notesInput = document.getElementById(`app-notes-${it.id}`);
+      return {
+        id: it.id,
+        approved_qty: qtyInput ? Number(qtyInput.value) : it.requested_qty,
+        notes: notesInput ? notesInput.value : ''
+      };
+    });
+
+    const adminNotes = document.getElementById('admin-overall-notes')?.value || '';
+
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.transfers.reviewApprove(transferId, {
+      admin_notes: adminNotes,
+      items: itemPayload
+    })
+      .then(res => {
+        Toast.show('Permintaan barang berhasil disetujui. Status diteruskan ke Picker.', 'success');
+        Modal.hide();
+        loadData();
+      })
+      .catch(err => Toast.show(err.message || 'Gagal menyetujui permintaan.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  /**
+   * LANGKAH 3: MODAL PICKER KEMAS & KIRIM (Input Fisik Siap Kirim & Catatan)
+   */
+  function openDispatchShipModal(transfer) {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.transfers.get(transfer.id)
+      .then(res => {
+        const data = res.data || res;
+        const items = data.items || [];
+        const t = data.transfer || transfer;
+
+        let itemInputs = items.map(it => {
+          const prd = productCache.find(p => p.id === it.product_id) || {};
+          const appQty = Number(it.approved_qty) !== undefined && it.approved_qty !== '' ? Number(it.approved_qty) : (Number(it.quantity) || 0);
+          return `
+            <div class="p-2.5 rounded-lg border border-purple-200 bg-purple-50/40 space-y-2 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-slate-800">${prd.name || it.product_id} (${prd.code || ''})</span>
+                <span class="text-purple-700">Acc Admin: <b>${appQty} ${prd.unit || 'pcs'}</b></span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Fisik Dikemas & Dikirim *</label>
+                  <input type="number" min="0" id="ship-qty-${it.id}" value="${appQty}" required class="w-full p-1.5 border border-purple-200 rounded bg-white text-xs font-bold text-purple-900" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Catatan Picker</label>
+                  <input type="text" id="ship-notes-${it.id}" placeholder="Kondisi packing / batch" class="w-full p-1.5 border border-purple-200 rounded bg-white text-xs" />
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const modalBody = Modal.create({
+          title: `📦 Kemas & Kirim Barang: ${t.transfer_no || t.id}`,
+          onClose: () => {}
+        });
+
+        modalBody.innerHTML = `
+          <form id="form-dispatch-ship" onsubmit="event.preventDefault(); StockTransfersTab.submitDispatchShip('${t.id}');" class="space-y-4 text-xs">
+            <p class="text-slate-500">Pastikan jumlah fisik barang yang dikemas sesuai. Saldo stok gudang asal akan langsung dipotong saat pengiriman disetujui:</p>
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              ${itemInputs}
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Catatan Pengiriman (No. Resi / Kurir / Ekspedisi)</label>
+              <textarea id="picker-overall-notes" rows="2" placeholder="Contoh: Dikirim via kurir internal / Resi JNE: 123456" class="w-full p-2 border border-slate-200 rounded-lg text-xs"></textarea>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+              <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold shadow-sm">
+                Potong Stok & Kirim (Shipped) &rarr;
+              </button>
+            </div>
+          </form>
+        `;
+        window._currentDispatchItems = items;
+      })
+      .catch(err => Toast.show(err.message || 'Gagal memuat form pengiriman.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  function submitDispatchShip(transferId) {
+    const items = window._currentDispatchItems || [];
+    const itemPayload = items.map(it => {
+      const qtyInput = document.getElementById(`ship-qty-${it.id}`);
+      const notesInput = document.getElementById(`ship-notes-${it.id}`);
+      return {
+        id: it.id,
+        shipped_qty: qtyInput ? Number(qtyInput.value) : it.approved_qty,
+        notes: notesInput ? notesInput.value : ''
+      };
+    });
+
+    const pickerNotes = document.getElementById('picker-overall-notes')?.value || '';
+
+    if (confirm('Konfirmasi pengiriman fisik barang? Stok di gudang asal akan langsung dipotong.')) {
+      if (typeof Loading !== 'undefined') Loading.show();
+
+      API.transfers.dispatchShip(transferId, {
+        picker_notes: pickerNotes,
+        items: itemPayload
+      })
+        .then(res => {
+          Toast.show('Barang telah dikirim (In-Transit). Stok gudang asal telah terpotong.', 'success');
+          Modal.hide();
+          loadData();
+        })
+        .catch(err => Toast.show(err.message || 'Gagal memproses pengiriman.', 'error'))
+        .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+    }
+  }
+
+  /**
+   * LANGKAH 4: MODAL SPG CEK FISIK & TERIMA (Input Riil, Catatan Selisih & Upload Foto)
+   */
+  function openConfirmReceiveModal(transfer) {
+    if (typeof Loading !== 'undefined') Loading.show();
+
+    API.transfers.get(transfer.id)
+      .then(res => {
+        const data = res.data || res;
+        const items = data.items || [];
+        const t = data.transfer || transfer;
+
+        let itemInputs = items.map(it => {
+          const prd = productCache.find(p => p.id === it.product_id) || {};
+          const shipQty = Number(it.shipped_qty) !== undefined && it.shipped_qty !== '' ? Number(it.shipped_qty) : (Number(it.quantity) || 0);
+          return `
+            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/40 space-y-2 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-slate-800">${prd.name || it.product_id} (${prd.code || ''})</span>
+                <span class="text-emerald-700">Dikirim Pusat: <b>${shipQty} ${prd.unit || 'pcs'}</b></span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Fisik Diterima Toko *</label>
+                  <input type="number" min="0" id="recv-qty-${it.id}" value="${shipQty}" required class="w-full p-1.5 border border-emerald-200 rounded bg-white text-xs font-bold text-emerald-900" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Catatan Selisih/Kondisi</label>
+                  <input type="text" id="recv-notes-${it.id}" placeholder="Misal: 1 pcs pecah / sesuai" class="w-full p-1.5 border border-emerald-200 rounded bg-white text-xs" />
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const modalBody = Modal.create({
+          title: `🔍 Verifikasi Fisik & Terima Barang: ${t.transfer_no || t.id}`,
+          onClose: () => {}
+        });
+
+        modalBody.innerHTML = `
+          <form id="form-confirm-receive" onsubmit="event.preventDefault(); StockTransfersTab.submitConfirmReceive('${t.id}');" class="space-y-4 text-xs">
+            <p class="text-slate-500">Hitung fisik barang yang benar-benar sampai di toko. Saldo stok toko akan bertambah sesuai kuantitas yang Anda masukkan di bawah ini:</p>
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              ${itemInputs}
+            </div>
+
+            <!-- Upload Foto Bukti Opsional -->
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="block font-bold text-slate-700">📸 Lampirkan Foto Bukti Fisik / Kondisi Paket (Opsional)</label>
+                <span class="text-[10px] text-slate-400">Kompresi Otomatis</span>
+              </div>
+              <input type="file" id="recv-photo-input" accept="image/*" capture="environment" onchange="StockTransfersTab.handlePhotoSelected(this)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              
+              <!-- Thumbnail Preview Box -->
+              <div id="recv-photo-preview-box" class="hidden items-center space-x-3 pt-2">
+                <img id="recv-photo-preview-img" src="" class="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-xs" />
+                <div>
+                  <span id="recv-photo-name" class="font-medium text-slate-800 text-[11px] block truncate max-w-[200px]">foto.jpg</span>
+                  <button type="button" onclick="StockTransfersTab.clearSelectedPhoto()" class="text-rose-600 hover:underline text-[11px] font-semibold mt-0.5">Hapus Foto</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Catatan Tambahan Penerimaan Toko</label>
+              <textarea id="receiver-overall-notes" rows="2" placeholder="Catatan kondisi penerimaan oleh SPG..." class="w-full p-2 border border-slate-200 rounded-lg text-xs"></textarea>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+              <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow-sm">
+                Konfirmasi Terima & Tambah Stok &rarr;
+              </button>
+            </div>
+          </form>
+        `;
+        window._currentReceiveItems = items;
+        window._selectedCompressedPhoto = null;
+      })
+      .catch(err => Toast.show(err.message || 'Gagal memuat form verifikasi penerimaan.', 'error'))
+      .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+  }
+
+  function handlePhotoSelected(inputEl) {
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+
+    if (typeof Loading !== 'undefined') Loading.show();
+    ImageCompressor.compress(file, { maxDimension: 1200, quality: 0.75 })
+      .then(res => {
+        window._selectedCompressedPhoto = res;
+        const box = document.getElementById('recv-photo-preview-box');
+        const img = document.getElementById('recv-photo-preview-img');
+        const name = document.getElementById('recv-photo-name');
+        if (box && img) {
+          img.src = res.base64Data;
+          if (name) name.innerText = `${file.name} (${Math.round(res.base64Data.length * 0.75 / 1024)} KB)`;
+          box.classList.remove('hidden');
+          box.classList.add('flex');
+        }
+      })
       .catch(err => {
-        Toast.show(err.message || 'Gagal memuat detail transfer.', 'error');
+        Toast.show(err.message || 'Gagal memproses gambar.', 'error');
       })
       .finally(() => {
         if (typeof Loading !== 'undefined') Loading.hide();
       });
   }
 
-  function openCreateModal() {
-    if (typeof Auth !== 'undefined' && !Auth.can('transfers', 'create')) {
-      Toast.show('Anda tidak memiliki izin untuk membuat pengajuan transfer.', 'error');
-      return;
+  function clearSelectedPhoto() {
+    window._selectedCompressedPhoto = null;
+    const inputEl = document.getElementById('recv-photo-input');
+    const box = document.getElementById('recv-photo-preview-box');
+    if (inputEl) inputEl.value = '';
+    if (box) {
+      box.classList.add('hidden');
+      box.classList.remove('flex');
     }
+  }
 
+  async function submitConfirmReceive(transferId) {
+    const items = window._currentReceiveItems || [];
+    const itemPayload = items.map(it => {
+      const qtyInput = document.getElementById(`recv-qty-${it.id}`);
+      const notesInput = document.getElementById(`recv-notes-${it.id}`);
+      return {
+        id: it.id,
+        received_qty: qtyInput ? Number(qtyInput.value) : it.shipped_qty,
+        notes: notesInput ? notesInput.value : ''
+      };
+    });
+
+    const receiverNotes = document.getElementById('receiver-overall-notes')?.value || '';
+
+    if (confirm('Konfirmasi penerimaan barang? Saldo stok di toko tujuan akan bertambah sesuai kuantitas riil yang Anda masukkan.')) {
+      if (typeof Loading !== 'undefined') Loading.show();
+
+      try {
+        let uploadedPhotoUrl = '';
+        // Upload foto jika user melampirkan foto
+        if (window._selectedCompressedPhoto && window._selectedCompressedPhoto.base64Data) {
+          const uploadRes = await API.drive.uploadPhoto({
+            base64Data: window._selectedCompressedPhoto.base64Data,
+            filename: `TRF_${transferId}_TERIMA_${Date.now()}.jpg`,
+            category: 'Penerimaan_Barang'
+          });
+          if (uploadRes && uploadRes.data && uploadRes.data.url) {
+            uploadedPhotoUrl = uploadRes.data.url;
+          }
+        }
+
+        API.transfers.confirmReceive(transferId, {
+          receiver_notes: receiverNotes,
+          attachment_url: uploadedPhotoUrl,
+          items: itemPayload
+        })
+          .then(res => {
+            Toast.show('Barang berhasil diterima! Saldo stok toko telah diperbarui.', 'success');
+            Modal.hide();
+            loadData();
+          })
+          .catch(err => Toast.show(err.message || 'Gagal menyelesaikan penerimaan barang.', 'error'))
+          .finally(() => { if (typeof Loading !== 'undefined') Loading.hide(); });
+      } catch (err) {
+        if (typeof Loading !== 'undefined') Loading.hide();
+        Toast.show(err.message || 'Gagal mengunggah foto atau memproses penerimaan.', 'error');
+      }
+    }
+  }
+
+  /**
+   * LANGKAH 1: FORM PENGAJUAN PERMINTAAN BARANG OLEH SPG / TOKO
+   */
+  function openCreateModal() {
     if (typeof Loading !== 'undefined') Loading.show();
 
     Promise.all([
@@ -275,10 +637,10 @@ const StockTransfersTab = (function() {
       const products = (prdRes && prdRes.data) || prdRes || [];
 
       let whOptions = warehouses.map(w => `<option value="${w.id}">${w.name} (${w.code})</option>`).join('');
-      let prdOptions = products.map(p => `<option value="${p.id}">${p.name} (Stok Total: ${p.stock || 0} ${p.unit || 'pcs'})</option>`).join('');
+      let prdOptions = products.map(p => `<option value="${p.id}">${p.name} (Stok: ${p.stock || 0} ${p.unit || 'pcs'})</option>`).join('');
 
       const modalBody = Modal.create({
-        title: 'Buat Pengajuan Pindah Gudang',
+        title: 'Ajukan Permintaan Pasokan Barang (Stock Requisition)',
         onClose: () => {}
       });
 
@@ -286,51 +648,51 @@ const StockTransfersTab = (function() {
         <form id="form-create-transfer" onsubmit="event.preventDefault(); StockTransfersTab.submitCreate();" class="space-y-4 text-xs">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block font-semibold text-slate-700 mb-1">Gudang Asal *</label>
-              <select id="transfer-source-wh" required class="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Pilih Gudang Asal --</option>
+              <label class="block font-semibold text-slate-700 mb-1">Toko Peminta (Tujuan Penerimaan) *</label>
+              <select id="transfer-dest-wh" required class="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="">-- Pilih Toko Anda --</option>
                 ${whOptions}
               </select>
             </div>
             <div>
-              <label class="block font-semibold text-slate-700 mb-1">Gudang Tujuan *</label>
-              <select id="transfer-dest-wh" required class="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Pilih Gudang Tujuan --</option>
+              <label class="block font-semibold text-slate-700 mb-1">Gudang Asal (Penyedia Stok Pusat) *</label>
+              <select id="transfer-source-wh" required class="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="">-- Pilih Gudang Pusat/Asal --</option>
                 ${whOptions}
               </select>
             </div>
           </div>
 
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">No. Referensi / Surat Jalan (Opsional)</label>
-            <input type="text" id="transfer-no" placeholder="Otomatis digenerate jika kosong" class="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">Catatan Pengiriman</label>
-            <textarea id="transfer-notes" rows="2" placeholder="Catatan atau instruksi pengiriman barang..." class="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">No. Permintaan (Opsional)</label>
+              <input type="text" id="transfer-no" placeholder="REQ-${Date.now().toString().slice(-6)}" class="w-full p-2 border border-slate-200 rounded-lg text-xs" />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Catatan / Alasan Permintaan</label>
+              <input type="text" id="transfer-notes" placeholder="Contoh: Stok toko menipis, persiapan weekend" class="w-full p-2 border border-slate-200 rounded-lg text-xs" />
+            </div>
           </div>
 
           <div class="border-t border-slate-100 pt-3">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-slate-800">Daftar Barang Transfer</span>
+              <span class="font-bold text-slate-800">Daftar Barang yang Diminta</span>
               <button type="button" onclick="StockTransfersTab.addItemRow()" class="text-blue-600 hover:text-blue-700 font-semibold text-xs">+ Tambah Item</button>
             </div>
-            <div id="transfer-items-container" class="space-y-2">
-              <!-- Item rows injected here -->
-            </div>
+            <div id="transfer-items-container" class="space-y-2"></div>
           </div>
 
           <div class="pt-4 border-t border-slate-100 flex justify-end space-x-2">
             <button type="button" onclick="Modal.hide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg">Batal</button>
-            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm">Simpan Draft Transfer</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm">
+              Kirim Permintaan ke Admin &rarr;
+            </button>
           </div>
         </form>
       `;
 
-      // Simpan opsi produk untuk baris dinamis
       window._transferPrdOptions = prdOptions;
-      addItemRow(); // Baris pertama
+      addItemRow();
     }).finally(() => {
       if (typeof Loading !== 'undefined') Loading.hide();
     });
@@ -340,7 +702,7 @@ const StockTransfersTab = (function() {
     const container = document.getElementById('transfer-items-container');
     if (!container) return;
 
-    const rowId = 'item-row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const rowId = 'trf-item-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const div = document.createElement('div');
     div.id = rowId;
     div.className = 'flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100';
@@ -352,7 +714,7 @@ const StockTransfersTab = (function() {
         </select>
       </div>
       <div class="w-24">
-        <input type="number" min="1" placeholder="Qty" class="transfer-item-qty w-full p-1.5 border border-slate-200 rounded text-xs bg-white" required />
+        <input type="number" min="1" placeholder="Qty" class="transfer-item-qty w-full p-1.5 border border-slate-200 rounded text-xs bg-white font-semibold" required />
       </div>
       <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-500 hover:text-red-700 p-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -368,11 +730,11 @@ const StockTransfersTab = (function() {
     const notes = document.getElementById('transfer-notes')?.value;
 
     if (!sourceWh || !destWh) {
-      Toast.show('Gudang asal dan tujuan wajib dipilih.', 'warning');
+      Toast.show('Gudang asal dan toko peminta wajib dipilih.', 'warning');
       return;
     }
     if (sourceWh === destWh) {
-      Toast.show('Gudang asal dan tujuan tidak boleh sama.', 'warning');
+      Toast.show('Gudang asal dan toko peminta tidak boleh sama.', 'warning');
       return;
     }
 
@@ -405,12 +767,12 @@ const StockTransfersTab = (function() {
       items: items
     })
       .then(res => {
-        Toast.show('Draft transfer berhasil dibuat.', 'success');
+        Toast.show('Permintaan barang berhasil diajukan ke Admin.', 'success');
         Modal.hide();
         loadData();
       })
       .catch(err => {
-        Toast.show(err.message || 'Gagal membuat transfer.', 'error');
+        Toast.show(err.message || 'Gagal membuat permintaan transfer.', 'error');
       })
       .finally(() => {
         if (typeof Loading !== 'undefined') Loading.hide();
@@ -422,7 +784,15 @@ const StockTransfersTab = (function() {
     loadData: loadData,
     openCreateModal: openCreateModal,
     addItemRow: addItemRow,
-    submitCreate: submitCreate
+    submitCreate: submitCreate,
+    openReviewApproveModal: openReviewApproveModal,
+    submitReviewApprove: submitReviewApprove,
+    openDispatchShipModal: openDispatchShipModal,
+    submitDispatchShip: submitDispatchShip,
+    openConfirmReceiveModal: openConfirmReceiveModal,
+    handlePhotoSelected: handlePhotoSelected,
+    clearSelectedPhoto: clearSelectedPhoto,
+    submitConfirmReceive: submitConfirmReceive
   };
 })();
 

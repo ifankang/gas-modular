@@ -67,37 +67,67 @@ function transfersCreate(payload, sessionToken) {
 }
 
 /**
- * Langkah 1: Approve Kirim by Admin / Manager.
- * Memotong saldo fisik di gudang asal.
+ * Langkah 2: Review & Approve by Admin / Store Manager.
  * @param {string} transferId
+ * @param {Object} payload { admin_notes, items: [{ id, approved_qty, notes }] }
  * @param {string} sessionToken
  * @returns {Object} Response standar
  */
-function transfersApproveSend(transferId, sessionToken) {
+function transfersReviewApprove(transferId, payload, sessionToken) {
   try {
     const session = RBAC.authorize(sessionToken, 'transfers', 'approve');
-    const result = InventoryService.approveTransferSend(transferId, session);
-    return Response.success(result, 'Pengiriman barang telah disetujui. Stok di gudang asal telah dipotong (status: In-Transit).');
+    const result = InventoryService.reviewApproveTransfer(transferId, payload, session);
+    return Response.success(result, 'Permintaan barang telah disetujui. Menunggu penyiapan fisik oleh Picker/Gudang.');
   } catch (error) {
     return Response.error(error.message);
   }
 }
 
 /**
- * Langkah 2: Terima Barang by SPG / Staff Toko di Gudang Tujuan.
- * Menambah saldo fisik di gudang tujuan.
+ * Langkah 3: Kemas & Kirim by Picker / Gudang.
+ * Memotong saldo fisik di gudang asal.
  * @param {string} transferId
+ * @param {Object} payload { picker_notes, items: [{ id, shipped_qty, notes }] }
  * @param {string} sessionToken
  * @returns {Object} Response standar
  */
-function transfersReceive(transferId, sessionToken) {
+function transfersDispatchShip(transferId, payload, sessionToken) {
   try {
-    const session = RBAC.authorize(sessionToken, 'transfers', 'receive');
-    const result = InventoryService.receiveTransfer(transferId, session);
-    return Response.success(result, 'Barang telah berhasil diterima. Saldo stok di gudang tujuan telah bertambah.');
+    const session = RBAC.authorize(sessionToken, 'transfers', 'approve');
+    const result = InventoryService.dispatchShippedTransfer(transferId, payload, session);
+    return Response.success(result, 'Barang telah dikemas dan dikirim. Stok gudang asal telah dipotong (status: Shipped / In-Transit).');
   } catch (error) {
     return Response.error(error.message);
   }
+}
+
+/**
+ * Langkah 4: Cek Fisik & Konfirmasi Terima by SPG Toko.
+ * Menambah saldo fisik di gudang/toko tujuan.
+ * @param {string} transferId
+ * @param {Object} payload { receiver_notes, attachment_url, items: [{ id, received_qty, notes }] }
+ * @param {string} sessionToken
+ * @returns {Object} Response standar
+ */
+function transfersConfirmReceive(transferId, payload, sessionToken) {
+  try {
+    const session = RBAC.authorize(sessionToken, 'transfers', 'receive');
+    const result = InventoryService.confirmReceiveTransfer(transferId, payload, session);
+    return Response.success(result, 'Barang telah diverifikasi dan diterima. Saldo stok toko telah bertambah.');
+  } catch (error) {
+    return Response.error(error.message);
+  }
+}
+
+/**
+ * Endpoint kompatibilitas lama
+ */
+function transfersApproveSend(transferId, sessionToken) {
+  return transfersDispatchShip(transferId, {}, sessionToken);
+}
+
+function transfersReceive(transferId, sessionToken) {
+  return transfersConfirmReceive(transferId, {}, sessionToken);
 }
 
 /**
