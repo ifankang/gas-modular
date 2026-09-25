@@ -145,3 +145,13 @@ function driveUploadPhoto(payload, sessionToken) {
     return Response.error(err.message);
   }
 }
+
+/**
+ * Fungsi pembantu (helper) untuk memicu prompt izin otorisasi Google Drive.
+ * Jalankan fungsi ini dari Apps Script Editor (klik Run / Jalankan) untuk menyetujui izin Google Drive.
+ */
+function authorizeDriveAccess() {
+  const root = DriveApp.getRootFolder();
+  Logger.log("Google Drive berhasil diotorisasi! Root Folder Name: " + root.getName());
+  return "Google Drive Access Authorized Successfully!";
+}
