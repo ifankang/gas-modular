@@ -384,16 +384,28 @@ const ReportService = {
 
   /**
    * 6. RINGKASAN EKSEKUTIF / DASHBOARD METRICS
-   * Menghitung KPI kunci secara menyeluruh.
+   * Menghitung KPI kunci secara menyeluruh dengan Caching RAM cerdas (TTL 15 Menit).
+   * Mencegah kalkulasi ribuan baris berulang-ulang untuk menghemat kuota GAS.
    * @returns {Object}
    */
   getExecutiveSummary: function() {
+    const CACHE_KEY = 'REPORT_KPI_EXECUTIVE_SUMMARY';
+    try {
+      const cache = CacheService.getScriptCache();
+      const cached = cache.get(CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      Logger.log("KPI cache get error: " + e.message);
+    }
+
     const valuation = this.getStockValuationReport({});
     const purchases = this.getPurchaseReport({});
     const sales = this.getSalesReport({});
     const transfers = this.getTransferReport({});
 
-    return {
+    const summaryData = {
       total_inventory_items: valuation.total_quantity,
       total_inventory_valuation: valuation.total_valuation,
       total_purchase_amount: purchases.total_amount,
@@ -401,7 +413,30 @@ const ReportService = {
       total_purchase_orders: purchases.total_orders,
       total_sales_orders: sales.total_orders,
       total_transfers: transfers.total_transfers,
-      warehouse_breakdown: valuation.warehouse_breakdown
+      warehouse_breakdown: valuation.warehouse_breakdown,
+      cached_at: new Date().toISOString()
     };
+
+    try {
+      const cache = CacheService.getScriptCache();
+      // Cache selama 15 menit (900 detik)
+      cache.put(CACHE_KEY, JSON.stringify(summaryData), 900);
+    } catch (e) {
+      Logger.log("KPI cache put error: " + e.message);
+    }
+
+    return summaryData;
+  },
+
+  /**
+   * Invalidasi manual atau otomatis saat ada mutasi transaksi / stok.
+   */
+  invalidateSummaryCache: function() {
+    try {
+      const cache = CacheService.getScriptCache();
+      cache.remove('REPORT_KPI_EXECUTIVE_SUMMARY');
+    } catch (e) {
+      Logger.log("KPI cache invalidate error: " + e.message);
+    }
   }
 };

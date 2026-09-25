@@ -79,6 +79,13 @@ const InventoryService = {
         created_by: user.name || user.email || 'System'
       });
 
+      // Invalidate KPI Cache Laporan jika ada modul ReportService
+      try {
+        if (typeof ReportService !== 'undefined' && typeof ReportService.invalidateSummaryCache === 'function') {
+          ReportService.invalidateSummaryCache();
+        }
+      } catch (ign) {}
+
       return {
         mutation: mutationRecord,
         previous_balance: currentBalance,

@@ -1,14 +1,21 @@
 <style>
-.gas-pagination { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; border-top: 1px solid #e5e7eb; margin-top: 1rem; }
-.gas-pagination-info { font-size: 0.875rem; color: #4b5563; }
-.gas-pagination-controls { display: flex; gap: 0.5rem; }
-.gas-pagination-btn { 
-  background: white; border: 1px solid #d1d5db; padding: 0.375rem 0.75rem; 
-  font-size: 0.875rem; border-radius: 0.375rem; cursor: pointer; color: #374151; font-weight: 500;
-  transition: all 0.15s;
+.gas-pagination { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.875rem 0.25rem 0.25rem; border-top: 1px solid #f1f5f9; margin-top: 0.5rem; }
+@media (min-width: 640px) {
+  .gas-pagination { flex-direction: row; align-items: center; justify-content: space-between; }
 }
-.gas-pagination-btn:hover:not(:disabled) { background: #f9fafb; border-color: #9ca3af; }
-.gas-pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gas-pagination-info { font-size: 0.75rem; color: #64748b; }
+.gas-pagination-controls { display: flex; align-items: center; gap: 0.375rem; }
+.gas-pagination-btn { 
+  background: white; border: 1px solid #e2e8f0; padding: 0.375rem 0.75rem; 
+  font-size: 0.75rem; border-radius: 0.5rem; cursor: pointer; color: #334155; font-weight: 600;
+  transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.gas-pagination-btn:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
+.gas-pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.gas-pagination-badge {
+  font-size: 0.75rem; font-weight: 600; color: #2563eb; background: #eff6ff; 
+  padding: 0.375rem 0.625rem; border-radius: 0.5rem; border: 1px solid #dbeafe;
+}
 </style>
 
 <script>
@@ -38,19 +45,21 @@ const Pagination = (function() {
     infoDiv.className = 'gas-pagination-info';
     
     if (config.totalItems === 0) {
-      infoDiv.innerText = 'No items';
+      infoDiv.innerText = 'Tidak ada data';
     } else {
       const startItem = (currentPage - 1) * config.pageSize + 1;
       const endItem = Math.min(currentPage * config.pageSize, config.totalItems);
-      infoDiv.innerHTML = `Showing <strong>${startItem}</strong> to <strong>${endItem}</strong> of <strong>${config.totalItems}</strong> results`;
+      infoDiv.innerHTML = `Menampilkan <strong class="text-slate-800 font-semibold">${startItem}</strong> - <strong class="text-slate-800 font-semibold">${endItem}</strong> dari <strong class="text-slate-800 font-semibold">${config.totalItems}</strong> data`;
     }
     
     const controlsDiv = document.createElement('div');
     controlsDiv.className = 'gas-pagination-controls';
     
+    // Tombol Sebelumnya
     const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
     prevBtn.className = 'gas-pagination-btn';
-    prevBtn.innerText = 'Previous';
+    prevBtn.innerHTML = `&larr; Prev`;
     prevBtn.disabled = currentPage <= 1;
     prevBtn.onclick = () => {
       if (currentPage > 1) {
@@ -58,9 +67,16 @@ const Pagination = (function() {
       }
     };
     
+    // Label Halaman
+    const pageBadge = document.createElement('span');
+    pageBadge.className = 'gas-pagination-badge';
+    pageBadge.innerText = `${currentPage} / ${totalPages}`;
+
+    // Tombol Selanjutnya
     const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
     nextBtn.className = 'gas-pagination-btn';
-    nextBtn.innerText = 'Next';
+    nextBtn.innerHTML = `Next &rarr;`;
     nextBtn.disabled = currentPage >= totalPages;
     nextBtn.onclick = () => {
       if (currentPage < totalPages) {
@@ -69,6 +85,7 @@ const Pagination = (function() {
     };
     
     controlsDiv.appendChild(prevBtn);
+    controlsDiv.appendChild(pageBadge);
     controlsDiv.appendChild(nextBtn);
     
     wrapper.appendChild(infoDiv);

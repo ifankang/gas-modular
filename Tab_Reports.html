@@ -245,10 +245,27 @@
 
     init: function() {
       console.log('ReportsTab Initializing...');
+      this.setDefaultDateFilters();
       this.bindEvents();
       this.loadLookups();
       this.loadSummaryKPIs();
       this.loadActiveReport();
+    },
+
+    setDefaultDateFilters: function() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      
+      const fromEl = document.getElementById('filter-from-date');
+      const toEl = document.getElementById('filter-to-date');
+      if (fromEl && !fromEl.value) {
+        fromEl.value = `${y}-${m}-01`; // Hari pertama bulan berjalan
+      }
+      if (toEl && !toEl.value) {
+        toEl.value = `${y}-${m}-${d}`; // Hari ini
+      }
     },
 
     bindEvents: function() {

@@ -102,10 +102,26 @@ const Table = (function() {
     viewsContainer.id = `${config.target}-views`;
     wrapper.appendChild(viewsContainer);
 
+    // Container for Pagination
+    const paginationContainer = document.createElement('div');
+    paginationContainer.id = `${config.target}-pagination`;
+    wrapper.appendChild(paginationContainer);
+
     container.appendChild(wrapper);
 
+    // Pagination State
+    const isPaginationEnabled = config.pagination !== false;
+    let pageSize = (typeof config.pageSize === 'number' && config.pageSize > 0) 
+      ? config.pageSize 
+      : ((typeof config.pagination === 'object' && config.pagination.pageSize) || 10);
+    let currentPage = 1;
+    let currentFilteredData = [];
+
     // Initial render of content
-    function filterAndRender(query) {
+    function filterAndRender(query, resetPage = true) {
+      if (resetPage) {
+        currentPage = 1;
+      }
       currentFilter = (query || '').toLowerCase().trim();
       let filtered = rawData;
       
@@ -130,8 +146,35 @@ const Table = (function() {
         });
       }
 
+      currentFilteredData = filtered;
       countBadge.innerText = `Menampilkan ${filtered.length} dari ${rawData.length} data`;
-      renderViews(filtered);
+
+      if (isPaginationEnabled && filtered.length > 0) {
+        const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, filtered.length);
+        const pageData = filtered.slice(startIndex, endIndex);
+
+        renderViews(pageData);
+
+        if (typeof Pagination !== 'undefined' && typeof Pagination.render === 'function') {
+          Pagination.render({
+            containerId: `${config.target}-pagination`,
+            currentPage: currentPage,
+            pageSize: pageSize,
+            totalItems: filtered.length,
+            onPageChange: function(newPage) {
+              currentPage = newPage;
+              filterAndRender(currentFilter, false);
+            }
+          });
+        }
+      } else {
+        paginationContainer.innerHTML = '';
+        renderViews(filtered);
+      }
     }
 
     function renderViews(dataToRender) {
