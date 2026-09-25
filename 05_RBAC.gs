@@ -144,6 +144,9 @@ const RBAC = {
         const reportActions = parseActions(row.reports);
         if (reportActions.length > 0) permissions.reports = reportActions;
 
+        const mutationActions = parseActions(row.mutations);
+        if (mutationActions.length > 0) permissions.mutations = mutationActions;
+
         if (row.roles !== undefined) {
           const roleActions = parseActions(row.roles);
           if (roleActions.length > 0) permissions.roles = roleActions;
@@ -187,6 +190,7 @@ const RBAC = {
         warehouses: ['*'],
         stocks: ['*'],
         transfers: ['*'],
+        mutations: ['*'],
         reports: ['*']
       };
     }

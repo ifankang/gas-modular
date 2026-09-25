@@ -470,6 +470,34 @@ function seedTransfersAndMutations(ss, now) {
     mutSheet.appendRow(mutHeaders);
   }
 
+  // Jika StockMutations kosong, semai mutasi awal berdasarkan stok yang ada
+  Database.clearCache('StockMutations');
+  const existingMutations = Database.findAll('StockMutations');
+  if (existingMutations.length === 0) {
+    const allStocks = Database.findAll('Stocks');
+    let mutSeq = 1;
+    allStocks.forEach(stk => {
+      const q = Number(stk.quantity) || 0;
+      if (q > 0) {
+        Database.create('StockMutations', {
+          id: Utils.generateId('MUT', mutSeq++),
+          date: now.split('T')[0],
+          type: 'IN',
+          reference_type: 'INITIAL_STOCK',
+          reference_id: 'INIT-' + stk.id,
+          warehouse_id: stk.warehouse_id,
+          product_id: stk.product_id,
+          quantity: q,
+          notes: 'Saldo stok awal sistem saat inisialisasi',
+          created_by: 'System Seed',
+          created_at: now,
+          updated_at: now
+        });
+      }
+    });
+    Logger.log('Seeded initial stock mutations from existing stocks.');
+  }
+
   // 4. Pastikan Akun SPG Uji Coba Terdaftar di Users
   Database.clearCache('Users');
   const existingUsers = Database.findAll('Users');

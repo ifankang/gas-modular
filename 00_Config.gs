@@ -31,6 +31,7 @@ const Config = {
         warehouses: ['read', 'create', 'edit', 'delete'],
         stocks: ['read', 'create', 'edit', 'delete'],
         transfers: ['read', 'create', 'edit', 'delete', 'approve', 'receive'],
+        mutations: ['read'],
         reports: ['read', 'export']
       }
     },
@@ -44,6 +45,7 @@ const Config = {
         warehouses: ['read', 'create', 'edit'],
         stocks: ['read', 'create', 'edit'],
         transfers: ['read', 'create', 'edit', 'approve', 'receive'],
+        mutations: ['read'],
         reports: ['read', 'export']
       }
     },
@@ -57,6 +59,7 @@ const Config = {
         warehouses: ['read'],
         stocks: ['read'],
         transfers: ['read', 'create'],
+        mutations: ['read'],
         reports: ['read']
       }
     },

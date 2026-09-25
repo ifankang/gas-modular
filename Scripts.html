@@ -14,6 +14,7 @@
       warehouses: ['create', 'read', 'edit', 'delete'],
       stocks: ['create', 'read', 'edit', 'delete'],
       transfers: ['create', 'read', 'edit', 'delete', 'approve', 'receive'],
+      mutations: ['read'],
       reports: ['read', 'export']
     },
     manager: {
@@ -25,6 +26,7 @@
       warehouses: ['create', 'read', 'edit'],
       stocks: ['create', 'read', 'edit'],
       transfers: ['create', 'read', 'edit', 'approve', 'receive'],
+      mutations: ['read'],
       reports: ['read', 'export']
     },
     staff: {
@@ -35,6 +37,7 @@
       warehouses: ['read'],
       stocks: ['read'],
       transfers: ['read', 'create'],
+      mutations: ['read'],
       reports: ['read']
     },
     spg: {
@@ -45,6 +48,7 @@
       stocks: ['read'],
       transfers: ['read', 'create', 'receive'],
       orders: ['read', 'create'],
+      mutations: ['read'],
       reports: ['read']
     },
     viewer: {
@@ -54,6 +58,7 @@
       warehouses: ['read'],
       stocks: ['read'],
       transfers: ['read'],
+      mutations: ['read'],
       reports: ['read']
     }
   };

@@ -14,8 +14,9 @@
       
       // Styling based on type
       let bgColor = 'bg-blue-600';
-      if (type === 'success') bgColor = 'bg-green-600';
+      if (type === 'success') bgColor = 'bg-emerald-600';
       if (type === 'error') bgColor = 'bg-red-600';
+      if (type === 'warning') bgColor = 'bg-amber-600';
       
       toast.className = `${bgColor} text-white px-4 py-3 rounded shadow-lg transition-opacity duration-300 flex items-center justify-between min-w-[250px] pointer-events-auto`;
       toast.innerHTML = `
@@ -33,6 +34,7 @@
     },
     success: (msg) => Toast.show(msg, 'success'),
     error: (msg) => Toast.show(msg, 'error'),
-    info: (msg) => Toast.show(msg, 'info')
+    info: (msg) => Toast.show(msg, 'info'),
+    warning: (msg) => Toast.show(msg, 'warning')
   };
 </script>

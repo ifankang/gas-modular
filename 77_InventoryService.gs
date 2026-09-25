@@ -291,17 +291,31 @@ const InventoryService = {
    */
   getMutations: function(filter) {
     let mutations = Repository.findAll(StockMutationSchema);
-    if (!filter) return mutations;
+    if (filter) {
+      if (filter.warehouse_id) {
+        mutations = mutations.filter(m => String(m.warehouse_id) === String(filter.warehouse_id));
+      }
+      if (filter.product_id) {
+        mutations = mutations.filter(m => String(m.product_id) === String(filter.product_id));
+      }
+      if (filter.type) {
+        mutations = mutations.filter(m => String(m.type) === String(filter.type));
+      }
+    }
 
-    if (filter.warehouse_id) {
-      mutations = mutations.filter(m => String(m.warehouse_id) === String(filter.warehouse_id));
-    }
-    if (filter.product_id) {
-      mutations = mutations.filter(m => String(m.product_id) === String(filter.product_id));
-    }
-    if (filter.type) {
-      mutations = mutations.filter(m => String(m.type) === String(filter.type));
-    }
+    // Perkaya data dengan nama produk dan nama gudang
+    const allProducts = Database.findAll('Products');
+    const allWarehouses = Database.findAll('Warehouses');
+    const pMap = {};
+    const wMap = {};
+    allProducts.forEach(p => { pMap[p.id] = p.name ? `${p.name} (${p.code || p.id})` : p.id; });
+    allWarehouses.forEach(w => { wMap[w.id] = w.name ? `${w.name} (${w.code || w.id})` : w.id; });
+
+    mutations = mutations.map(m => ({
+      ...m,
+      warehouse_name: wMap[m.warehouse_id] || m.warehouse_id,
+      product_name: pMap[m.product_id] || m.product_id
+    }));
 
     return mutations.reverse(); // Terbaru di atas
   }
