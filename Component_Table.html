@@ -59,7 +59,9 @@ var Table = (function() {
     config.target = targetId;
     
     container.innerHTML = '';
-    const rawData = config.data || [];
+    const rawData = Array.isArray(config.data) 
+      ? config.data 
+      : ((config.data && Array.isArray(config.data.data)) ? config.data.data : []);
     let currentFilter = '';
     let sortKey = null;
     let sortAsc = true;

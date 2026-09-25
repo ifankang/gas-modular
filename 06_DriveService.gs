@@ -152,6 +152,8 @@ function driveUploadPhoto(payload, sessionToken) {
  */
 function authorizeDriveAccess() {
   const root = DriveApp.getRootFolder();
-  Logger.log("Google Drive berhasil diotorisasi! Root Folder Name: " + root.getName());
+  const testFolder = root.createFolder('DataBridge_Test_Auth_' + Date.now());
+  testFolder.setTrashed(true);
+  Logger.log("Google Drive createFolder berhasil diotorisasi!");
   return "Google Drive Access Authorized Successfully!";
 }
