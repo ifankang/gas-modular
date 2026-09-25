@@ -79,7 +79,7 @@ const WarehousesTab = (function() {
       })
       .catch(function(err) {
         console.error('Error loading warehouses:', err);
-        Toast.show(err.message || 'Gagal memuat data gudang.', 'error');
+        Toast.error(err.message || 'Gagal memuat data gudang.');
         const container = document.getElementById(tableContainerId);
         if (container) {
           container.innerHTML = '<div class="text-center py-12 text-slate-500"><p class="text-sm">Gagal memuat data. Silakan muat ulang halaman.</p></div>';
@@ -95,7 +95,7 @@ const WarehousesTab = (function() {
       openEditModal(row);
     } else if (action === 'delete') {
       if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'delete')) {
-        Toast.show('Anda tidak memiliki izin untuk menghapus gudang.', 'error');
+        Toast.error('Anda tidak memiliki izin untuk menghapus gudang.');
         return;
       }
 
@@ -103,12 +103,12 @@ const WarehousesTab = (function() {
         if (typeof Loading !== 'undefined') Loading.show();
         API.warehouses.delete(row.id)
           .then(function() {
-            Toast.show('Gudang berhasil dihapus.', 'success');
+            Toast.success('Gudang berhasil dihapus.');
             loadData();
           })
           .catch(function(err) {
             console.error('Delete warehouse error:', err);
-            Toast.show(err.message || 'Gagal menghapus gudang.', 'error');
+            Toast.error(err.message || 'Gagal menghapus gudang.');
           })
           .finally(function() {
             if (typeof Loading !== 'undefined') Loading.hide();
@@ -119,105 +119,79 @@ const WarehousesTab = (function() {
 
   function openCreateModal() {
     if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'create')) {
-      Toast.show('Anda tidak memiliki izin untuk menambah gudang.', 'error');
+      Toast.error('Anda tidak memiliki izin untuk menambah gudang.');
       return;
     }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
 
-    const modalId = 'modal-create-warehouse';
-    const formId = 'form-create-warehouse';
-
-    const formHtml = Form.render({
-      schema: WarehouseSchema,
-      formId: formId,
-      mode: 'create'
-    });
-
-    Modal.create({
-      id: modalId,
+    var modalBody = Modal.create({
       title: 'Tambah Gudang Baru',
-      content: formHtml,
-      confirmText: 'Simpan Gudang',
-      onConfirm: function() {
-        const formEl = document.getElementById(formId);
-        if (!formEl) return;
+      onClose: function() {}
+    });
+    modalBody.id = 'warehouses-form-container';
 
-        if (typeof Form !== 'undefined' && Form.validate && !Form.validate(formId, WarehouseSchema)) {
-          return;
-        }
-
-        const formData = new FormData(formEl);
-        const data = {};
-        formData.forEach(function(val, key) {
-          data[key] = val;
-        });
-
+    Form.render({
+      containerId: 'warehouses-form-container',
+      schema: WarehouseSchema,
+      mode: 'create',
+      onSubmit: function(data) {
         if (typeof Loading !== 'undefined') Loading.show();
         API.warehouses.create(data)
           .then(function() {
-            Toast.show('Gudang baru berhasil ditambahkan.', 'success');
-            Modal.close(modalId);
+            Modal.hide();
+            Toast.success('Gudang baru berhasil ditambahkan.');
             loadData();
           })
           .catch(function(err) {
             console.error('Create warehouse error:', err);
-            Toast.show(err.message || 'Gagal menyimpan gudang.', 'error');
+            Toast.error(err.message || 'Gagal menyimpan gudang.');
           })
           .finally(function() {
             if (typeof Loading !== 'undefined') Loading.hide();
           });
+      },
+      onCancel: function() {
+        Modal.hide();
       }
     });
   }
 
   function openEditModal(row) {
     if (typeof Auth !== 'undefined' && !Auth.can('warehouses', 'edit')) {
-      Toast.show('Anda tidak memiliki izin untuk mengubah data gudang.', 'error');
+      Toast.error('Anda tidak memiliki izin untuk mengubah data gudang.');
       return;
     }
+    if (typeof Modal === 'undefined' || typeof Form === 'undefined') return;
 
-    const modalId = 'modal-edit-warehouse';
-    const formId = 'form-edit-warehouse';
-
-    const formHtml = Form.render({
-      schema: WarehouseSchema,
-      formId: formId,
-      mode: 'edit',
-      initialData: row
-    });
-
-    Modal.create({
-      id: modalId,
+    var modalBody = Modal.create({
       title: 'Edit Gudang: ' + (row.name || row.code),
-      content: formHtml,
-      confirmText: 'Simpan Perubahan',
-      onConfirm: function() {
-        const formEl = document.getElementById(formId);
-        if (!formEl) return;
+      onClose: function() {}
+    });
+    modalBody.id = 'warehouses-form-container';
 
-        if (typeof Form !== 'undefined' && Form.validate && !Form.validate(formId, WarehouseSchema)) {
-          return;
-        }
-
-        const formData = new FormData(formEl);
-        const data = {};
-        formData.forEach(function(val, key) {
-          data[key] = val;
-        });
-
+    Form.render({
+      containerId: 'warehouses-form-container',
+      schema: WarehouseSchema,
+      mode: 'edit',
+      data: row,
+      onSubmit: function(data) {
         if (typeof Loading !== 'undefined') Loading.show();
         API.warehouses.update(row.id, data)
           .then(function() {
-            Toast.show('Data gudang berhasil diperbarui.', 'success');
-            Modal.close(modalId);
+            Modal.hide();
+            Toast.success('Data gudang berhasil diperbarui.');
             loadData();
           })
           .catch(function(err) {
             console.error('Update warehouse error:', err);
-            Toast.show(err.message || 'Gagal memperbarui gudang.', 'error');
+            Toast.error(err.message || 'Gagal memperbarui gudang.');
           })
           .finally(function() {
             if (typeof Loading !== 'undefined') Loading.hide();
           });
+      },
+      onCancel: function() {
+        Modal.hide();
       }
     });
   }

@@ -53,8 +53,10 @@ const Table = (function() {
    * }
    */
   function render(config) {
-    const container = document.getElementById(config.target);
+    const targetId = config.target || config.containerId;
+    const container = document.getElementById(targetId);
     if (!container) return;
+    config.target = targetId;
     
     container.innerHTML = '';
     const rawData = config.data || [];
