@@ -599,8 +599,8 @@ const StockTransfersTab = (function() {
             filename: `TRF_${transferId}_TERIMA_${Date.now()}.jpg`,
             category: 'Penerimaan_Barang'
           });
-          if (uploadRes && uploadRes.data && uploadRes.data.url) {
-            uploadedPhotoUrl = uploadRes.data.url;
+          if (uploadRes) {
+            uploadedPhotoUrl = uploadRes.url || (uploadRes.data && uploadRes.data.url) || '';
           }
         }
 

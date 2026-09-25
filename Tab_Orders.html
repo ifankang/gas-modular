@@ -515,8 +515,8 @@ const OrdersTab = (function() {
             filename: `SO_${orderNo || Date.now()}_STRUK.jpg`,
             category: 'Penjualan'
           });
-          if (uploadRes && uploadRes.data && uploadRes.data.url) {
-            uploadedPhotoUrl = uploadRes.data.url;
+          if (uploadRes) {
+            uploadedPhotoUrl = uploadRes.url || (uploadRes.data && uploadRes.data.url) || '';
           }
         }
 
