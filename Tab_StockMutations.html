@@ -61,19 +61,23 @@ const StockMutationsTab = (function() {
       API.warehouses.list(),
       API.products.list()
     ]).then(([whRes, prdRes]) => {
-      const warehouses = (whRes && whRes.data) || whRes || [];
-      const products = (prdRes && prdRes.data) || prdRes || [];
+      const warehouses = Array.isArray(whRes) ? whRes : ((whRes && Array.isArray(whRes.data)) ? whRes.data : []);
+      const products = Array.isArray(prdRes) ? prdRes : ((prdRes && Array.isArray(prdRes.data)) ? prdRes.data : []);
 
       const whSelect = document.getElementById('filter-mut-warehouse');
       if (whSelect) {
+        const currentWhVal = whSelect.value;
         whSelect.innerHTML = '<option value="">-- Semua Gudang --</option>' +
-          warehouses.map(w => `<option value="${w.id}">${w.name} (${w.code})</option>`).join('');
+          warehouses.map(w => `<option value="${w.id}">${w.name || w.id} (${w.code || w.id})</option>`).join('');
+        if (currentWhVal) whSelect.value = currentWhVal;
       }
 
       const prdSelect = document.getElementById('filter-mut-product');
       if (prdSelect) {
+        const currentPrdVal = prdSelect.value;
         prdSelect.innerHTML = '<option value="">-- Semua Produk --</option>' +
-          products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+          products.map(p => `<option value="${p.id}">${p.name || p.id} (${p.code || p.id})</option>`).join('');
+        if (currentPrdVal) prdSelect.value = currentPrdVal;
       }
     }).catch(err => {
       console.warn('Failed to load filter options:', err);
@@ -125,7 +129,8 @@ const StockMutationsTab = (function() {
   };
 })();
 
-window.initStockMutationsTab = function() {
+window.initMutationsTab = function() {
   StockMutationsTab.init();
 };
+window.initStockMutationsTab = window.initMutationsTab;
 </script>
